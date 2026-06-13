@@ -30,7 +30,7 @@ iOS and Android. The flick input is intentionally mobile-first.
 
 ```bash
 git clone https://github.com/fujiberg/hajiku.git
-cd hajiku
+cd hajiku/app
 flutter pub get
 flutter run
 ```

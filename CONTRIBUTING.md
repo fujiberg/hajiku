@@ -5,8 +5,8 @@ Thank you for your interest in contributing. This document covers conventions, w
 ## Development setup
 
 1. Clone the repo and run `flutter pub get`
-2. Copy `.env.example` to `.env` and add your WaniKani API token
-3. Run on a physical device or emulator with `flutter run`
+2. Run on a physical device or emulator with `flutter run`
+3. Enter your WaniKani API token in the app's settings screen — it's stored locally on-device, not in source
 
 See the README for requirements.
 
