@@ -1,25 +1,7 @@
-## What does this PR do?
+## Summary
 
-<!-- One or two sentences summarising the change -->
+<!-- What and why, in one or two sentences -->
 
 ## Related issue
 
 Closes #
-
-## Type of change
-
-<!-- bug fix / new feature / refactor / chore / documentation -->
-
-## Testing done
-
-<!-- How did you verify this works? Device tested on, manual steps, etc. -->
-
-## Screenshots / recordings
-
-<!-- For UI changes, before/after screenshots or a screen recording -->
-
-## Checklist
-
-- [ ] Code follows project conventions
-- [ ] No API tokens or secrets committed
-- [ ] Self-reviewed the diff before opening
