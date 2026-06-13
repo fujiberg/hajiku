@@ -8,11 +8,7 @@ Closes #
 
 ## Type of change
 
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Refactor
-- [ ] Chore / dependency update
-- [ ] Documentation
+<!-- bug fix / new feature / refactor / chore / documentation -->
 
 ## Testing done
 
