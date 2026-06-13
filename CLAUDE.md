@@ -14,11 +14,17 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. The core diff
 
 ## Repo structure
 
-> To be expanded once the Flutter project is scaffolded.
+- `.flutter-version` — pinned Flutter SDK version
+- `app/` — Flutter project root; run all `flutter`/`dart` commands from here
+  - `lib/main.dart` — entry point
+  - `lib/src/app.dart` — root `HajikuApp` widget (theme, routing)
+  - `lib/src/core/` — shared utilities, theming, constants
+  - `lib/src/features/` — feature modules, one directory per feature (added as built)
+  - `test/` — widget and unit tests
 
 ## Hard rules
 
-- Never commit API tokens or secrets — use `.env` (gitignored)
+- Never commit API tokens or secrets. The WaniKani API token is a user-entered runtime credential stored on-device (e.g. secure storage), not a build-time `.env` value
 - No backend calls outside the designated API client layer
 - `flutter analyze` must pass with zero warnings before any PR
 - `dart format` enforced — run before committing
