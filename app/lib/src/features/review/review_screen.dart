@@ -9,6 +9,7 @@ import '../../core/settings/settings_controller.dart';
 import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/providers.dart';
 import 'models/review_session.dart';
+import 'review_progress.dart';
 import 'review_session_controller.dart';
 
 /// Runs a review session: presents one meaning/reading quiz at a time for
@@ -185,7 +186,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     }
 
     if (feedback.correct && (settings?.autoAdvanceEnabled ?? false)) {
-      Future.delayed(const Duration(milliseconds: 600), () {
+      Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           ref.read(reviewSessionControllerProvider.notifier).next();
         }
@@ -227,15 +228,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     final subject = quiz.item.subject;
     final color = subject.type.color;
     final showQuizTypeBar = subject.readings.isNotEmpty;
-    final keyboardSubmitEnabled =
-        ref.watch(settingsControllerProvider).value?.keyboardSubmitEnabled ??
-        true;
+    final settings = ref.watch(settingsControllerProvider).value;
+    final keyboardSubmitEnabled = settings?.keyboardSubmitEnabled ?? true;
+    final autoAdvanceEnabled = settings?.autoAdvanceEnabled ?? false;
 
     return Column(
       children: [
-        LinearProgressIndicator(
-          value: session.completedItems / session.totalItems,
-        ),
+        _ReviewProgressBar(session: session, backgroundColor: color),
         Expanded(
           child: SingleChildScrollView(
             child: Column(
@@ -329,17 +328,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                             focusedBorder: UnderlineInputBorder(
                               borderSide: BorderSide(color: color),
                             ),
-                            helperText: feedback == null
+                            helperText: feedback == null || feedback.correct
                                 ? null
-                                : (feedback.correct
-                                      ? 'Correct!'
-                                      : 'Answer: ${feedback.answer}'),
-                            helperStyle: feedback == null
+                                : 'Answer: ${feedback.answer}',
+                            helperStyle: feedback == null || feedback.correct
                                 ? null
-                                : TextStyle(
-                                    color: feedback.correct
-                                        ? Colors.green
-                                        : Colors.red,
+                                : const TextStyle(
+                                    color: Colors.red,
                                     fontWeight: FontWeight.bold,
                                   ),
                           ),
@@ -349,9 +344,27 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: color),
-                          onPressed: _submit,
-                          child: Text(feedback == null ? 'Submit' : 'Next'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: feedback?.correct ?? false
+                                ? Colors.green
+                                : color,
+                            disabledBackgroundColor: feedback?.correct ?? false
+                                ? Colors.green
+                                : null,
+                            disabledForegroundColor: feedback?.correct ?? false
+                                ? Colors.white
+                                : null,
+                          ),
+                          onPressed:
+                              (feedback?.correct ?? false) && autoAdvanceEnabled
+                              ? null
+                              : _submit,
+                          child: Text(switch (feedback) {
+                            null => 'Submit',
+                            ReviewAnswerFeedback(correct: true) =>
+                              autoAdvanceEnabled ? 'Correct' : 'Correct - Next',
+                            ReviewAnswerFeedback(correct: false) => 'Next',
+                          }),
                         ),
                       ),
                     ],
@@ -362,6 +375,79 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A segmented progress bar laid out in the order quizzes will be
+/// encountered: one "dash" per review item, split into two glued halves for
+/// items that need both a meaning and a reading quiz. Each segment's color
+/// reflects that quiz's state (untouched, current, correct, or incorrect).
+class _ReviewProgressBar extends StatelessWidget {
+  const _ReviewProgressBar({
+    required this.session,
+    required this.backgroundColor,
+  });
+
+  final ReviewSessionState session;
+
+  /// Fills the bar's transparent segments and gaps, matching the subject
+  /// color shown in the app bar above.
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = buildProgressGroups(session.initialQueue);
+
+    return Container(
+      color: backgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SizedBox(
+        height: 6,
+        child: Row(
+          children: [
+            for (var i = 0; i < groups.length; i++) ...[
+              if (i > 0) const SizedBox(width: 3),
+              Expanded(
+                child: Row(
+                  children: [
+                    for (final quiz in groups[i])
+                      Expanded(
+                        child: _ProgressSegment(
+                          color: progressSegmentColor(
+                            session,
+                            quiz.item,
+                            quiz.type,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A single rounded segment of the [_ReviewProgressBar].
+class _ProgressSegment extends StatelessWidget {
+  const _ProgressSegment({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
+        border: color == Colors.white
+            ? Border.all(color: Colors.black26)
+            : null,
+      ),
     );
   }
 }

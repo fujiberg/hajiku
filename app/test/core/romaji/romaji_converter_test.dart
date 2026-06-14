@@ -52,6 +52,29 @@ void main() {
     test('doubled n followed by a vowel', () {
       expect(RomajiConverter.convert('nna').kana, 'んな');
     });
+
+    test('trailing doubled n resolves to a single ん', () {
+      final result = RomajiConverter.convert('nn');
+      expect(result.kana, 'ん');
+      expect(result.tokens, hasLength(1));
+      expect(result.tokens.single.isPending, isFalse);
+    });
+
+    test('word ending in doubled n resolves to a single trailing ん', () {
+      expect(RomajiConverter.convert('honn').kana, 'ほん');
+    });
+
+    test('tripled n resolves the first pair to ん, leaving one n pending', () {
+      final result = RomajiConverter.convert('nnn');
+      expect(result.kana, 'んn');
+      expect(result.tokens, hasLength(2));
+      expect(result.tokens[0].isPending, isFalse);
+      expect(result.tokens[1].isPending, isTrue);
+    });
+
+    test('tripled n before a vowel resolves to ん followed by the mora', () {
+      expect(RomajiConverter.convert('nnni').kana, 'んに');
+    });
   });
 
   group('isFinal eager resolution', () {

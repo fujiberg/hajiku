@@ -68,10 +68,74 @@ class RomajiConverter {
     final lower = romaji.toLowerCase();
     final tokens = <RomajiKanaToken>[];
     final buffer = StringBuffer();
-    var i = 0;
+    final nNode = romajiToKanaTable['n']! as Map<String, Object>;
 
+    var i = 0;
     while (i < lower.length) {
       final start = i;
+
+      if (lower[i] == 'n') {
+        var runEnd = i;
+        while (runEnd < lower.length && lower[runEnd] == 'n') {
+          runEnd++;
+        }
+        final runLength = runEnd - i;
+        final next = runEnd < lower.length ? lower[runEnd] : null;
+
+        // If the character after this run of n's could extend a final n into
+        // a な-row mora (na/ni/.../nya/.../n'), that last n is left for the
+        // normal walk below to combine with it. The rest of the run is
+        // "bare": consecutive pairs of n's resolve to ん, and (per the
+        // doubling convention) so does an odd one out - unless it's at the
+        // very end of the input, where it's still pending more input.
+        final absorbsNext = next != null && nNode[next] is Map<String, Object>;
+        final bareCount = absorbsNext ? runLength - 1 : runLength;
+
+        if (bareCount > 0) {
+          var pos = i;
+          for (var pair = 0; pair < bareCount ~/ 2; pair++) {
+            tokens.add(
+              RomajiKanaToken(
+                romajiStart: pos,
+                romajiEnd: pos + 2,
+                kanaStart: buffer.length,
+                kanaEnd: buffer.length + 1,
+                kana: 'ん',
+                isPending: false,
+              ),
+            );
+            buffer.write('ん');
+            pos += 2;
+          }
+          if (bareCount.isOdd) {
+            // As with a lone trailing n, this one stays pending - rather
+            // than resolving to ん - if it's the last character the user has
+            // typed so far (nothing after it but already-settled text past
+            // the cursor), since more input could still extend it.
+            final effectiveEnd =
+                (!isFinal && cursorOffset != null && cursorOffset > pos)
+                ? cursorOffset
+                : lower.length;
+            final pending = pos + 1 >= effectiveEnd && !isFinal;
+            final text = pending ? romaji.substring(pos, pos + 1) : 'ん';
+            tokens.add(
+              RomajiKanaToken(
+                romajiStart: pos,
+                romajiEnd: pos + 1,
+                kanaStart: buffer.length,
+                kanaEnd: buffer.length + text.length,
+                kana: text,
+                isPending: pending,
+              ),
+            );
+            buffer.write(text);
+            pos += 1;
+          }
+          i = pos;
+          continue;
+        }
+      }
+
       final rootNode = romajiToKanaTable[lower.substring(i, i + 1)];
       if (rootNode is! Map<String, Object>) {
         // Unmapped character: pass through literally.

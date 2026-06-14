@@ -30,6 +30,18 @@ void main() {
     'data': {'subject_id': 2, 'subject_type': 'kanji', 'srs_stage': 1},
   };
 
+  const secondRadicalAssignment = {
+    'id': 102,
+    'object': 'assignment',
+    'data': {'subject_id': 3, 'subject_type': 'radical', 'srs_stage': 1},
+  };
+
+  const thirdRadicalAssignment = {
+    'id': 103,
+    'object': 'assignment',
+    'data': {'subject_id': 4, 'subject_type': 'radical', 'srs_stage': 1},
+  };
+
   const radicalSubject = {
     'id': 1,
     'object': 'radical',
@@ -56,6 +68,32 @@ void main() {
       'readings': [
         {'reading': 'いち', 'primary': true, 'accepted_answer': true},
       ],
+    },
+  };
+
+  const secondRadicalSubject = {
+    'id': 3,
+    'object': 'radical',
+    'data': {
+      'characters': '人',
+      'slug': 'leaf',
+      'meanings': [
+        {'meaning': 'Leaf', 'primary': true, 'accepted_answer': true},
+      ],
+      'auxiliary_meanings': <Object>[],
+    },
+  };
+
+  const thirdRadicalSubject = {
+    'id': 4,
+    'object': 'radical',
+    'data': {
+      'characters': '木',
+      'slug': 'tree',
+      'meanings': [
+        {'meaning': 'Tree', 'primary': true, 'accepted_answer': true},
+      ],
+      'auxiliary_meanings': <Object>[],
     },
   };
 
@@ -207,5 +245,71 @@ void main() {
     await controller.next();
 
     expect(reviewSubmitted, isFalse);
+  });
+
+  test('initialQueue is a stable snapshot of the starting queue', () async {
+    final container = buildContainer(
+      assignments: [radicalAssignment, kanjiAssignment],
+      subjects: [radicalSubject, kanjiSubject],
+    );
+    final initial = await container.read(
+      reviewSessionControllerProvider.future,
+    );
+    final controller = container.read(reviewSessionControllerProvider.notifier);
+
+    expect(initial.initialQueue, hasLength(3));
+    expect(initial.initialQueue, initial.queue);
+
+    controller.submitAnswer(
+      initial.current!.type == ReviewQuizType.meaning
+          ? (initial.current!.item.subject.acceptedMeanings.first)
+          : (initial.current!.item.subject.acceptedReadings.first),
+    );
+    await controller.next();
+
+    final session = container.read(reviewSessionControllerProvider).value!;
+    expect(session.initialQueue, initial.initialQueue);
+  });
+
+  test('an incorrect answer is re-queued at a random later position, never '
+      'immediately next', () async {
+    final container = buildContainer(
+      assignments: [radicalAssignment, secondRadicalAssignment],
+      subjects: [radicalSubject, secondRadicalSubject],
+    );
+    var session = await container.read(reviewSessionControllerProvider.future);
+    final controller = container.read(reviewSessionControllerProvider.notifier);
+    final mistakenItem = session.current!.item;
+
+    controller.submitAnswer('wrong answer');
+    await controller.next();
+    session = container.read(reviewSessionControllerProvider).value!;
+
+    expect(session.isFinished, isFalse);
+    expect(session.queue, hasLength(2));
+    expect(session.queue.first.item, isNot(mistakenItem));
+    expect(session.queue.last.item, mistakenItem);
+  });
+
+  test('limits the session to the configured reviewsPerSession', () async {
+    final container = buildContainer(
+      assignments: [
+        radicalAssignment,
+        secondRadicalAssignment,
+        thirdRadicalAssignment,
+      ],
+      subjects: [radicalSubject, secondRadicalSubject, thirdRadicalSubject],
+    );
+    await container
+        .read(settingsControllerProvider.notifier)
+        .setReviewsPerSession(2);
+
+    final session = await container.read(
+      reviewSessionControllerProvider.future,
+    );
+
+    expect(session.totalItems, 2);
+    expect(session.queue, hasLength(2));
+    expect(session.initialQueue, hasLength(2));
   });
 }

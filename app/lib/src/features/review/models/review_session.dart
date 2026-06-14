@@ -58,14 +58,20 @@ class ReviewAnswerFeedback {
 class ReviewSessionState {
   const ReviewSessionState({
     required this.queue,
+    required this.initialQueue,
     required this.totalItems,
     required this.completedItems,
     this.feedback,
   });
 
   /// Remaining quizzes, in the order they'll be asked. Quizzes answered
-  /// incorrectly are appended to the end to be retried later.
+  /// incorrectly are re-queued at a random later position to be retried.
   final List<ReviewQuiz> queue;
+
+  /// The shuffled queue as it was at the start of the session, before any
+  /// answers or retries. Fixed for the lifetime of the session; used to lay
+  /// out a progress overview in the order items will be encountered.
+  final List<ReviewQuiz> initialQueue;
 
   /// The number of distinct subjects in this session.
   final int totalItems;
@@ -90,6 +96,7 @@ class ReviewSessionState {
   }) {
     return ReviewSessionState(
       queue: queue ?? this.queue,
+      initialQueue: initialQueue,
       totalItems: totalItems,
       completedItems: completedItems ?? this.completedItems,
       feedback: clearFeedback ? null : (feedback ?? this.feedback),

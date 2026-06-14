@@ -13,15 +13,22 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   @override
   Future<ReviewSessionState> build() async {
     final client = ref.watch(wanikaniApiClientProvider);
-    final assignments = await client.getReviewAssignments();
+    final allAssignments = await client.getReviewAssignments();
 
-    if (assignments.isEmpty) {
+    if (allAssignments.isEmpty) {
       return const ReviewSessionState(
         queue: [],
+        initialQueue: [],
         totalItems: 0,
         completedItems: 0,
       );
     }
+
+    final settings = await ref.watch(settingsControllerProvider.future);
+    allAssignments.shuffle(Random());
+    final assignments = allAssignments
+        .take(settings.reviewsPerSession)
+        .toList();
 
     final subjects = await client.getSubjects(
       assignments.map((a) => a.subjectId).toList(),
@@ -45,6 +52,7 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
 
     return ReviewSessionState(
       queue: queue,
+      initialQueue: List.of(queue),
       totalItems: itemCount,
       completedItems: 0,
     );
@@ -87,7 +95,7 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   }
 
   /// Advances past the current quiz's feedback. Quizzes answered
-  /// incorrectly are re-queued at the end to be retried.
+  /// incorrectly are re-queued at a random later position to be retried.
   Future<void> next() async {
     final session = state.value;
     if (session == null || session.feedback == null) return;
@@ -100,7 +108,13 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     if (session.feedback!.correct) {
       if (justCompleted) completedItems++;
     } else {
-      remaining.add(ReviewQuiz(item: quiz.item, type: quiz.type));
+      // Re-queue at a random later position, but never immediately next, so
+      // the user gets at least one other question before a retry.
+      final retryQuiz = ReviewQuiz(item: quiz.item, type: quiz.type);
+      final insertIndex = remaining.isEmpty
+          ? 0
+          : 1 + Random().nextInt(remaining.length);
+      remaining.insert(insertIndex, retryQuiz);
     }
 
     state = AsyncData(
