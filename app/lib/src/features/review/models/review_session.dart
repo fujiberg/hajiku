@@ -45,13 +45,9 @@ class ReviewQuiz {
 /// Feedback shown for the current quiz after the user submits an answer,
 /// before they move on to the next one.
 class ReviewAnswerFeedback {
-  const ReviewAnswerFeedback({required this.correct, required this.answer});
+  const ReviewAnswerFeedback({required this.correct});
 
   final bool correct;
-
-  /// The accepted answer to display, regardless of whether the user's
-  /// answer was correct.
-  final String answer;
 }
 
 /// State of an in-progress (or finished) review session.

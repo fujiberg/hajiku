@@ -83,14 +83,8 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
       quiz.item.incorrectReadingAnswers++;
     }
 
-    final answer = quiz.type == ReviewQuizType.meaning
-        ? quiz.item.subject.primaryMeaning
-        : quiz.item.subject.primaryReading;
-
     state = AsyncData(
-      session.copyWith(
-        feedback: ReviewAnswerFeedback(correct: correct, answer: answer),
-      ),
+      session.copyWith(feedback: ReviewAnswerFeedback(correct: correct)),
     );
   }
 

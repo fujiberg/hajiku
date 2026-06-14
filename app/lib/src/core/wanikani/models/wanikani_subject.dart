@@ -42,12 +42,25 @@ class WaniKaniAuxiliaryMeaning {
   final WaniKaniAuxiliaryMeaningType type;
 }
 
+/// The category of a kanji reading. `null` for non-kanji subjects.
+enum WaniKaniReadingType { onyomi, kunyomi, nanori }
+
+/// Display label for a [WaniKaniReadingType].
+extension WaniKaniReadingTypeLabel on WaniKaniReadingType {
+  String get label => switch (this) {
+    WaniKaniReadingType.onyomi => "On'yomi",
+    WaniKaniReadingType.kunyomi => "Kun'yomi",
+    WaniKaniReadingType.nanori => 'Nanori',
+  };
+}
+
 /// A single reading for a subject, as returned within `readings`.
 class WaniKaniReading {
   const WaniKaniReading({
     required this.reading,
     required this.primary,
     required this.acceptedAnswer,
+    this.type,
   });
 
   factory WaniKaniReading.fromJson(Map<String, dynamic> json) {
@@ -55,12 +68,74 @@ class WaniKaniReading {
       reading: json['reading'] as String,
       primary: json['primary'] as bool,
       acceptedAnswer: json['accepted_answer'] as bool,
+      type: switch (json['type'] as String?) {
+        'onyomi' => WaniKaniReadingType.onyomi,
+        'kunyomi' => WaniKaniReadingType.kunyomi,
+        'nanori' => WaniKaniReadingType.nanori,
+        _ => null,
+      },
     );
   }
 
   final String reading;
   final bool primary;
   final bool acceptedAnswer;
+
+  /// For kanji subjects, whether this is an on'yomi, kun'yomi, or nanori
+  /// reading. `null` for radicals and vocabulary.
+  final WaniKaniReadingType? type;
+}
+
+/// An example sentence for a vocabulary subject, as returned within
+/// `context_sentences`.
+class WaniKaniContextSentence {
+  const WaniKaniContextSentence({
+    required this.english,
+    required this.japanese,
+  });
+
+  factory WaniKaniContextSentence.fromJson(Map<String, dynamic> json) {
+    return WaniKaniContextSentence(
+      english: json['en'] as String,
+      japanese: json['ja'] as String,
+    );
+  }
+
+  final String english;
+  final String japanese;
+}
+
+/// A voice actor's recording of a subject's reading, as returned within
+/// `pronunciation_audios`.
+class WaniKaniPronunciationAudio {
+  const WaniKaniPronunciationAudio({
+    required this.url,
+    required this.contentType,
+    this.pronunciation,
+    this.voiceActorName,
+  });
+
+  factory WaniKaniPronunciationAudio.fromJson(Map<String, dynamic> json) {
+    final metadata = json['metadata'] as Map<String, dynamic>?;
+    return WaniKaniPronunciationAudio(
+      url: json['url'] as String,
+      contentType: json['content_type'] as String,
+      pronunciation: metadata?['pronunciation'] as String?,
+      voiceActorName: metadata?['voice_actor_name'] as String?,
+    );
+  }
+
+  /// Location of the audio file.
+  final String url;
+
+  /// The audio format, e.g. `audio/mpeg` or `audio/ogg`.
+  final String contentType;
+
+  /// The reading this recording pronounces.
+  final String? pronunciation;
+
+  /// The name of the voice actor who recorded this clip.
+  final String? voiceActorName;
 }
 
 /// A radical, kanji, or vocabulary subject, as returned by `GET /subjects`.
@@ -73,12 +148,18 @@ class WaniKaniSubject {
     required this.meanings,
     required this.auxiliaryMeanings,
     required this.readings,
+    this.meaningMnemonic,
+    this.readingMnemonic,
+    this.contextSentences = const [],
+    this.pronunciationAudios = const [],
   });
 
   factory WaniKaniSubject.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>;
     final readings = data['readings'] as List<dynamic>?;
     final auxiliaryMeanings = data['auxiliary_meanings'] as List<dynamic>?;
+    final contextSentences = data['context_sentences'] as List<dynamic>?;
+    final pronunciationAudios = data['pronunciation_audios'] as List<dynamic>?;
 
     return WaniKaniSubject(
       id: json['id'] as int,
@@ -95,6 +176,19 @@ class WaniKaniSubject {
           .toList(),
       readings: (readings ?? const [])
           .map((e) => WaniKaniReading.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      meaningMnemonic: data['meaning_mnemonic'] as String?,
+      readingMnemonic: data['reading_mnemonic'] as String?,
+      contextSentences: (contextSentences ?? const [])
+          .map(
+            (e) => WaniKaniContextSentence.fromJson(e as Map<String, dynamic>),
+          )
+          .toList(),
+      pronunciationAudios: (pronunciationAudios ?? const [])
+          .map(
+            (e) =>
+                WaniKaniPronunciationAudio.fromJson(e as Map<String, dynamic>),
+          )
           .toList(),
     );
   }
@@ -115,6 +209,21 @@ class WaniKaniSubject {
 
   /// Accepted readings, in kana. Empty for radicals.
   final List<WaniKaniReading> readings;
+
+  /// Mnemonic explaining how to remember the meaning, with WaniKani's markup
+  /// tags (e.g. `<radical>`, `<meaning>`) marking emphasized terms.
+  final String? meaningMnemonic;
+
+  /// Mnemonic explaining how to remember the reading. `null` for radicals
+  /// and subjects without a reading.
+  final String? readingMnemonic;
+
+  /// Example sentences using this subject. Empty for radicals and kanji.
+  final List<WaniKaniContextSentence> contextSentences;
+
+  /// Voice actor recordings of this subject's reading. Empty for radicals
+  /// and kanji.
+  final List<WaniKaniPronunciationAudio> pronunciationAudios;
 
   /// The text to display for this subject.
   String get displayText => characters ?? slug;

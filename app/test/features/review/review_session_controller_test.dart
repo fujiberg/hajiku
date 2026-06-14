@@ -205,7 +205,6 @@ void main() {
     controller.submitAnswer('Floor');
     var session = container.read(reviewSessionControllerProvider).value!;
     expect(session.feedback?.correct, isFalse);
-    expect(session.feedback?.answer, 'Ground');
 
     await controller.next();
     session = container.read(reviewSessionControllerProvider).value!;

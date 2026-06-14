@@ -153,7 +153,7 @@ void main() {
         initialQueue: const [],
         totalItems: 1,
         completedItems: 0,
-        feedback: const ReviewAnswerFeedback(correct: false, answer: 'one'),
+        feedback: const ReviewAnswerFeedback(correct: false),
       );
 
       expect(

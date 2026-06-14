@@ -38,6 +38,7 @@ dependencies:
   flutter_secure_storage: ^10.3.1
   flutter_riverpod: ^3.3.2
   shared_preferences: ^2.5.5
+  audioplayers: ^6.7.1
 
 dev_dependencies:
   flutter_test:

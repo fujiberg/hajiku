@@ -8,6 +8,7 @@ import '../../core/romaji/romaji_kana_input_formatter.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/providers.dart';
+import '../../core/widgets/term_info_panel.dart';
 import 'models/review_session.dart';
 import 'review_progress.dart';
 import 'review_session_controller.dart';
@@ -243,51 +244,68 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                   width: double.infinity,
                   height: MediaQuery.sizeOf(context).height * 0.22,
                   color: color,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          subject.type.shortLabel.toUpperCase(),
-                          style: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                subject.type.shortLabel.toUpperCase(),
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                    ),
                               ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          subject.displayText,
-                          style: const TextStyle(
-                            fontSize: 64,
-                            color: Colors.white,
+                              const SizedBox(height: 16),
+                              Text(
+                                subject.displayText,
+                                style: const TextStyle(
+                                  fontSize: 64,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (showQuizTypeBar)
-                  Container(
-                    width: double.infinity,
-                    color: quiz.type == ReviewQuizType.reading
-                        ? Colors.white
-                        : Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Center(
-                      child: Text(
-                        quiz.type.label.toUpperCase(),
-                        style: TextStyle(
-                          color: quiz.type == ReviewQuizType.reading
-                              ? Colors.black
-                              : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+                      ),
+                      // Always reserved, even when empty, so the box (and
+                      // everything below it) stays the same height whether
+                      // or not this quiz has a reading.
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.fromLTRB(60, 0, 60, 8),
+                        decoration: BoxDecoration(
+                          color: !showQuizTypeBar
+                              ? color
+                              : (quiz.type == ReviewQuizType.reading
+                                        ? Colors.white
+                                        : Colors.black)
+                                    .withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: Text(
+                            showQuizTypeBar
+                                ? quiz.type.label.toUpperCase()
+                                : '',
+                            style: TextStyle(
+                              color: quiz.type == ReviewQuizType.reading
+                                  ? Colors.black
+                                  : Colors.white,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                ),
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
@@ -328,15 +346,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                             focusedBorder: UnderlineInputBorder(
                               borderSide: BorderSide(color: color),
                             ),
-                            helperText: feedback == null || feedback.correct
-                                ? null
-                                : 'Answer: ${feedback.answer}',
-                            helperStyle: feedback == null || feedback.correct
-                                ? null
-                                : const TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
                           ),
                         ),
                       ),
@@ -345,9 +354,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                         width: double.infinity,
                         child: FilledButton(
                           style: FilledButton.styleFrom(
-                            backgroundColor: feedback?.correct ?? false
-                                ? Colors.green
-                                : color,
+                            backgroundColor: switch (feedback) {
+                              null => color,
+                              ReviewAnswerFeedback(correct: true) =>
+                                Colors.green,
+                              ReviewAnswerFeedback(correct: false) =>
+                                Colors.red,
+                            },
                             disabledBackgroundColor: feedback?.correct ?? false
                                 ? Colors.green
                                 : null,
@@ -363,10 +376,20 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                             null => 'Submit',
                             ReviewAnswerFeedback(correct: true) =>
                               autoAdvanceEnabled ? 'Correct' : 'Correct - Next',
-                            ReviewAnswerFeedback(correct: false) => 'Next',
+                            ReviewAnswerFeedback(correct: false) =>
+                              'Incorrect - Next',
                           }),
                         ),
                       ),
+                      if (feedback != null && !feedback.correct) ...[
+                        const SizedBox(height: 16),
+                        TermInfoPanel(
+                          subject: subject,
+                          focus: quiz.type == ReviewQuizType.meaning
+                              ? TermInfoFocus.meaning
+                              : TermInfoFocus.reading,
+                        ),
+                      ],
                     ],
                   ),
                 ),
