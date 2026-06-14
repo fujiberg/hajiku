@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/storage/token_storage.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/wanikani/wanikani_api_client.dart';
 import '../../core/wanikani/wanikani_exception.dart';
 
 /// Lets the user enter their WaniKani API token, validates it against the
 /// API, and persists it on success.
-class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key, required this.onConnected});
-
-  /// Called with the validated token once it has been saved to storage.
-  final ValueChanged<String> onConnected;
+class OnboardingScreen extends ConsumerStatefulWidget {
+  const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _tokenController = TextEditingController();
-  final _tokenStorage = TokenStorage();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -44,8 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     try {
       await client.getUser();
-      await _tokenStorage.saveToken(token);
-      widget.onConnected(token);
+      await ref.read(authControllerProvider.notifier).connect(token);
     } on WaniKaniAuthException {
       setState(() => _errorMessage = 'That token was rejected by WaniKani.');
     } on WaniKaniApiException catch (e) {

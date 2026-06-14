@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Securely stores the user's WaniKani API token on-device.
@@ -16,3 +17,5 @@ class TokenStorage {
 
   Future<void> deleteToken() => _storage.delete(key: _tokenKey);
 }
+
+final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());

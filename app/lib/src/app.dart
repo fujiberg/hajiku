@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'core/storage/token_storage.dart';
+import 'core/auth/auth_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -21,44 +22,20 @@ class HajikuApp extends StatelessWidget {
 
 /// Decides whether to show onboarding or the home screen based on whether a
 /// WaniKani API token is already stored on-device.
-class _RootScreen extends StatefulWidget {
+class _RootScreen extends ConsumerWidget {
   const _RootScreen();
 
   @override
-  State<_RootScreen> createState() => _RootScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
 
-class _RootScreenState extends State<_RootScreen> {
-  final _tokenStorage = TokenStorage();
-  late Future<String?> _tokenFuture = _tokenStorage.readToken();
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: _tokenFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final token = snapshot.data;
-        if (token == null) {
-          return OnboardingScreen(
-            onConnected: (token) => setState(() {
-              _tokenFuture = Future.value(token);
-            }),
-          );
-        }
-
-        return HomeScreen(
-          token: token,
-          onDisconnected: () => setState(() {
-            _tokenFuture = Future.value(null);
-          }),
-        );
-      },
-    );
+    return switch (authState) {
+      AsyncData(value: final token) =>
+        token == null ? const OnboardingScreen() : const HomeScreen(),
+      AsyncError(:final error) => Scaffold(
+        body: Center(child: Text('Error: $error')),
+      ),
+      _ => const Scaffold(body: Center(child: CircularProgressIndicator())),
+    };
   }
 }
