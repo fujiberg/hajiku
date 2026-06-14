@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/romaji/romaji_kana_input_formatter.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/providers.dart';
@@ -129,6 +130,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _romajiFormatter = RomajiKanaInputFormatter();
   late final _shakeController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 400),
@@ -155,6 +157,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
       _onFeedback(feedback);
     } else if (oldWidget.session.feedback != null && feedback == null) {
       _controller.clear();
+      _romajiFormatter.reset();
       // As in initState, request focus after the field has had a frame to
       // become enabled again, so the keyboard reliably reopens.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -193,11 +196,16 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
   void _submit() {
     final controller = ref.read(reviewSessionControllerProvider.notifier);
     if (widget.session.feedback == null) {
-      if (_validateInput(_controller.text) != null) {
+      final isReading = widget.session.current!.type == ReviewQuizType.reading;
+      final answer = isReading ? _romajiFormatter.finalize() : _controller.text;
+      if (_validateInput(answer) != null) {
         _onInvalidInput();
         return;
       }
-      controller.submitAnswer(_controller.text);
+      if (answer != _controller.text) {
+        _controller.text = answer;
+      }
+      controller.submitAnswer(answer);
     } else {
       controller.next();
     }
@@ -302,6 +310,9 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                           enabled: feedback == null,
                           autocorrect: false,
                           enableSuggestions: false,
+                          inputFormatters: quiz.type == ReviewQuizType.reading
+                              ? [_romajiFormatter]
+                              : null,
                           textAlign: TextAlign.center,
                           textInputAction: TextInputAction.done,
                           style: const TextStyle(fontSize: 28),
