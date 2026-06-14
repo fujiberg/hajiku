@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings/settings_controller.dart';
 import '../../core/wanikani/providers.dart';
+import '../../core/wanikani/wanikani_exception.dart';
 import 'models/review_session.dart';
 
 /// Drives a single review session: builds the initial quiz queue, checks
@@ -94,12 +95,10 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     final quiz = session.queue.first;
     final remaining = session.queue.skip(1).toList();
     var completedItems = session.completedItems;
+    final justCompleted = session.feedback!.correct && quiz.item.isComplete;
 
     if (session.feedback!.correct) {
-      if (quiz.item.isComplete) {
-        completedItems++;
-        await _submitReview(quiz.item);
-      }
+      if (justCompleted) completedItems++;
     } else {
       remaining.add(ReviewQuiz(item: quiz.item, type: quiz.type));
     }
@@ -111,6 +110,15 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         clearFeedback: true,
       ),
     );
+
+    if (justCompleted) {
+      try {
+        await _submitReview(quiz.item);
+      } on WaniKaniException {
+        // Reporting to WaniKani is best-effort: the local session has
+        // already advanced and shouldn't be blocked by a failed sync.
+      }
+    }
   }
 
   Future<void> _submitReview(ReviewItem item) async {
