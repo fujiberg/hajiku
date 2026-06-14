@@ -89,6 +89,34 @@ class _SettingsList extends ConsumerWidget {
           value: settings.vocabAudioEnabled,
           onChanged: controller.setVocabAudioEnabled,
         ),
+        SwitchListTile(
+          title: const Text('Submit with Enter key'),
+          subtitle: const Text(
+            'Turn off to require tapping Submit, to avoid accidentally '
+            'submitting when you meant Backspace',
+          ),
+          value: settings.keyboardSubmitEnabled,
+          onChanged: controller.setKeyboardSubmitEnabled,
+        ),
+        SwitchListTile(
+          title: const Text('Haptic feedback for invalid answers'),
+          subtitle: const Text(
+            'Vibrate when Submit is pressed with an empty answer',
+          ),
+          value: settings.invalidInputHapticFeedbackEnabled,
+          onChanged: controller.setInvalidInputHapticFeedbackEnabled,
+        ),
+        const Divider(),
+        const _SectionHeader('Developer'),
+        SwitchListTile(
+          title: const Text('Submit review results to WaniKani'),
+          subtitle: const Text(
+            'Turn off to test the review flow with sample data without '
+            'affecting your WaniKani SRS progress',
+          ),
+          value: settings.submitReviewResultsEnabled,
+          onChanged: controller.setSubmitReviewResultsEnabled,
+        ),
         const Divider(),
         const _SectionHeader('Account'),
         ListTile(

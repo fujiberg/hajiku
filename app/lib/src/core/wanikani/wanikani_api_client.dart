@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'models/wanikani_assignment.dart';
 import 'models/wanikani_level_progression.dart';
+import 'models/wanikani_subject.dart';
 import 'models/wanikani_user.dart';
 import 'wanikani_exception.dart';
 
@@ -56,6 +57,68 @@ class WaniKaniApiClient {
     return assignments;
   }
 
+  /// Fetches the assignments that currently have a review available,
+  /// regardless of level.
+  Future<List<WaniKaniAssignment>> getReviewAssignments() {
+    final uri = _baseUrl
+        .resolve('assignments')
+        .replace(queryParameters: {'immediately_available_for_review': 'true'});
+    return _getAllPages(uri, WaniKaniAssignment.fromJson);
+  }
+
+  /// Fetches the subjects (radicals/kanji/vocabulary) with the given [ids].
+  Future<List<WaniKaniSubject>> getSubjects(List<int> ids) {
+    if (ids.isEmpty) return Future.value(const []);
+
+    final uri = _baseUrl
+        .resolve('subjects')
+        .replace(queryParameters: {'ids': ids.join(',')});
+    return _getAllPages(uri, WaniKaniSubject.fromJson);
+  }
+
+  /// Submits the result of a completed review for [assignmentId], advancing
+  /// (or resetting) its SRS stage on WaniKani.
+  Future<void> submitReview({
+    required int assignmentId,
+    required int incorrectMeaningAnswers,
+    required int incorrectReadingAnswers,
+  }) async {
+    final token = await _tokenProvider();
+    if (token == null || token.isEmpty) {
+      throw const WaniKaniAuthException('No WaniKani API token configured.');
+    }
+
+    final response = await _httpClient.post(
+      _baseUrl.resolve('reviews'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Wanikani-Revision': _apiRevision,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'review': {
+          'assignment_id': assignmentId,
+          'incorrect_meaning_answers': incorrectMeaningAnswers,
+          'incorrect_reading_answers': incorrectReadingAnswers,
+        },
+      }),
+    );
+
+    switch (response.statusCode) {
+      case 200:
+      case 201:
+        return;
+      case 401:
+        throw const WaniKaniAuthException('WaniKani API token was rejected.');
+      default:
+        throw WaniKaniApiException(
+          response.statusCode,
+          'WaniKani API request to submit a review failed with status '
+          '${response.statusCode}.',
+        );
+    }
+  }
+
   /// Fetches the user's progress through each WaniKani level.
   Future<List<WaniKaniLevelProgression>> getLevelProgressions() async {
     final progressions = <WaniKaniLevelProgression>[];
@@ -98,6 +161,30 @@ class WaniKaniApiClient {
 
     final json = await _get(uri);
     return json['total_count'] as int;
+  }
+
+  /// Follows `pages.next_url` to fetch every page of a paginated endpoint,
+  /// parsing each `data` entry with [fromJson].
+  Future<List<T>> _getAllPages<T>(
+    Uri uri,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    final items = <T>[];
+    Uri? next = uri;
+
+    while (next != null) {
+      final json = await _get(next);
+      items.addAll(
+        (json['data'] as List<dynamic>).map(
+          (e) => fromJson(e as Map<String, dynamic>),
+        ),
+      );
+
+      final nextUrl = (json['pages'] as Map<String, dynamic>)['next_url'];
+      next = nextUrl == null ? null : Uri.parse(nextUrl as String);
+    }
+
+    return items;
   }
 
   Future<Map<String, dynamic>> _get(Uri uri) async {

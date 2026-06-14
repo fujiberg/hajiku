@@ -13,6 +13,11 @@ class SettingsStorage {
   static const _hapticFeedbackEnabledKey = 'settings_haptic_feedback_enabled';
   static const _autoAdvanceEnabledKey = 'settings_auto_advance_enabled';
   static const _vocabAudioEnabledKey = 'settings_vocab_audio_enabled';
+  static const _submitReviewResultsEnabledKey =
+      'settings_submit_review_results_enabled';
+  static const _keyboardSubmitEnabledKey = 'settings_keyboard_submit_enabled';
+  static const _invalidInputHapticFeedbackEnabledKey =
+      'settings_invalid_input_haptic_feedback_enabled';
 
   final SharedPreferencesAsync _preferences;
 
@@ -34,6 +39,15 @@ class SettingsStorage {
       vocabAudioEnabled:
           await _preferences.getBool(_vocabAudioEnabledKey) ??
           defaults.vocabAudioEnabled,
+      submitReviewResultsEnabled:
+          await _preferences.getBool(_submitReviewResultsEnabledKey) ??
+          defaults.submitReviewResultsEnabled,
+      keyboardSubmitEnabled:
+          await _preferences.getBool(_keyboardSubmitEnabledKey) ??
+          defaults.keyboardSubmitEnabled,
+      invalidInputHapticFeedbackEnabled:
+          await _preferences.getBool(_invalidInputHapticFeedbackEnabledKey) ??
+          defaults.invalidInputHapticFeedbackEnabled,
     );
   }
 
@@ -51,6 +65,15 @@ class SettingsStorage {
 
   Future<void> setVocabAudioEnabled(bool value) =>
       _preferences.setBool(_vocabAudioEnabledKey, value);
+
+  Future<void> setSubmitReviewResultsEnabled(bool value) =>
+      _preferences.setBool(_submitReviewResultsEnabledKey, value);
+
+  Future<void> setKeyboardSubmitEnabled(bool value) =>
+      _preferences.setBool(_keyboardSubmitEnabledKey, value);
+
+  Future<void> setInvalidInputHapticFeedbackEnabled(bool value) =>
+      _preferences.setBool(_invalidInputHapticFeedbackEnabledKey, value);
 }
 
 final settingsStorageProvider = Provider<SettingsStorage>(

@@ -6,6 +6,9 @@ class AppSettings {
     this.hapticFeedbackEnabled = true,
     this.autoAdvanceEnabled = false,
     this.vocabAudioEnabled = true,
+    this.submitReviewResultsEnabled = true,
+    this.keyboardSubmitEnabled = true,
+    this.invalidInputHapticFeedbackEnabled = true,
   });
 
   static const defaultLessonsPerSession = 5;
@@ -28,12 +31,31 @@ class AppSettings {
   /// Whether to play the audio for vocabulary items after answering.
   final bool vocabAudioEnabled;
 
+  /// Whether completed review results are submitted to WaniKani.
+  ///
+  /// Disabling this is a temporary developer setting for testing the review
+  /// flow against sample data without affecting WaniKani SRS progress.
+  final bool submitReviewResultsEnabled;
+
+  /// Whether pressing Enter/Done on the keyboard submits an answer.
+  ///
+  /// Disabling this requires tapping the Submit button instead, to avoid
+  /// accidentally submitting an answer when reaching for backspace.
+  final bool keyboardSubmitEnabled;
+
+  /// Whether to vibrate when Submit is pressed with an invalid answer (for
+  /// example, an empty input).
+  final bool invalidInputHapticFeedbackEnabled;
+
   AppSettings copyWith({
     int? lessonsPerSession,
     int? reviewsPerSession,
     bool? hapticFeedbackEnabled,
     bool? autoAdvanceEnabled,
     bool? vocabAudioEnabled,
+    bool? submitReviewResultsEnabled,
+    bool? keyboardSubmitEnabled,
+    bool? invalidInputHapticFeedbackEnabled,
   }) {
     return AppSettings(
       lessonsPerSession: lessonsPerSession ?? this.lessonsPerSession,
@@ -42,6 +64,13 @@ class AppSettings {
           hapticFeedbackEnabled ?? this.hapticFeedbackEnabled,
       autoAdvanceEnabled: autoAdvanceEnabled ?? this.autoAdvanceEnabled,
       vocabAudioEnabled: vocabAudioEnabled ?? this.vocabAudioEnabled,
+      submitReviewResultsEnabled:
+          submitReviewResultsEnabled ?? this.submitReviewResultsEnabled,
+      keyboardSubmitEnabled:
+          keyboardSubmitEnabled ?? this.keyboardSubmitEnabled,
+      invalidInputHapticFeedbackEnabled:
+          invalidInputHapticFeedbackEnabled ??
+          this.invalidInputHapticFeedbackEnabled,
     );
   }
 }

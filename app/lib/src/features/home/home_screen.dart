@@ -5,6 +5,7 @@ import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/models/wanikani_user.dart';
 import '../../core/wanikani/providers.dart';
+import '../review/review_screen.dart';
 import '../settings/settings_screen.dart';
 
 /// Landing screen shown once a WaniKani API token has been validated and
@@ -98,7 +99,9 @@ class _Dashboard extends ConsumerWidget {
                 label: 'Reviews',
                 count: ref.watch(wanikaniReviewCountProvider),
                 tonal: true,
-                onPressed: () => _showComingSoon(context),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const ReviewScreen()),
+                ),
               ),
             ),
           ],

@@ -28,4 +28,13 @@ extension SubjectTypeStyle on WaniKaniSubjectType {
     WaniKaniSubjectType.vocabulary => 'Vocabulary',
     WaniKaniSubjectType.kanaVocabulary => 'Kana vocab',
   };
+
+  /// A short, singular label for this subject type, shown alongside a
+  /// review question.
+  String get shortLabel => switch (this) {
+    WaniKaniSubjectType.radical => 'Radical',
+    WaniKaniSubjectType.kanji => 'Kanji',
+    WaniKaniSubjectType.vocabulary => 'Vocabulary',
+    WaniKaniSubjectType.kanaVocabulary => 'Vocabulary',
+  };
 }

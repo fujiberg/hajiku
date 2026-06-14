@@ -33,6 +33,27 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     _update((settings) => settings.copyWith(vocabAudioEnabled: value));
   }
 
+  Future<void> setSubmitReviewResultsEnabled(bool value) async {
+    await ref
+        .read(settingsStorageProvider)
+        .setSubmitReviewResultsEnabled(value);
+    _update((settings) => settings.copyWith(submitReviewResultsEnabled: value));
+  }
+
+  Future<void> setKeyboardSubmitEnabled(bool value) async {
+    await ref.read(settingsStorageProvider).setKeyboardSubmitEnabled(value);
+    _update((settings) => settings.copyWith(keyboardSubmitEnabled: value));
+  }
+
+  Future<void> setInvalidInputHapticFeedbackEnabled(bool value) async {
+    await ref
+        .read(settingsStorageProvider)
+        .setInvalidInputHapticFeedbackEnabled(value);
+    _update(
+      (settings) => settings.copyWith(invalidInputHapticFeedbackEnabled: value),
+    );
+  }
+
   void _update(AppSettings Function(AppSettings settings) update) {
     final current = state.value;
     if (current != null) state = AsyncData(update(current));
