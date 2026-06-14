@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/auth/auth_controller.dart';
 import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/models/wanikani_user.dart';
 import '../../core/wanikani/providers.dart';
+import '../settings/settings_screen.dart';
 
 /// Landing screen shown once a WaniKani API token has been validated and
 /// stored. Shows the user's level progress and entry points into lessons
@@ -22,10 +22,11 @@ class HomeScreen extends ConsumerWidget {
         title: const Text('弾く Hajiku'),
         actions: [
           IconButton(
-            onPressed: () =>
-                ref.read(authControllerProvider.notifier).disconnect(),
-            icon: const Icon(Icons.logout),
-            tooltip: 'Disconnect',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
           ),
         ],
       ),

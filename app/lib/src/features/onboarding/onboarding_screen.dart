@@ -42,6 +42,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     try {
       await client.getUser();
       await ref.read(authControllerProvider.notifier).connect(token);
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } on WaniKaniAuthException {
       setState(() => _errorMessage = 'That token was rejected by WaniKani.');
     } on WaniKaniApiException catch (e) {
