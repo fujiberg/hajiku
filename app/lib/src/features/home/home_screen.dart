@@ -5,6 +5,7 @@ import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/models/wanikani_user.dart';
 import '../../core/wanikani/providers.dart';
+import '../lessons/lesson_screen.dart';
 import '../review/review_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -90,7 +91,9 @@ class _Dashboard extends ConsumerWidget {
               child: _ActionButton(
                 label: 'Lessons',
                 count: ref.watch(wanikaniLessonCountProvider),
-                onPressed: () => _showComingSoon(context),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const LessonScreen()),
+                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -108,12 +111,6 @@ class _Dashboard extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Coming soon')));
   }
 
   String _daysAtLevel(DateTime startedAt) {

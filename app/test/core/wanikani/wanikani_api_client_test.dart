@@ -285,6 +285,76 @@ void main() {
     expect(assignments[0].subjectId, 1);
   });
 
+  test('returns assignments with a lesson available', () async {
+    final mockClient = MockClient((request) async {
+      expect(request.url.path, '/v2/assignments');
+      expect(
+        request.url.queryParameters['immediately_available_for_lessons'],
+        'true',
+      );
+
+      return http.Response(
+        jsonEncode({
+          'pages': {'next_url': null},
+          'data': [
+            {
+              'id': 200,
+              'object': 'assignment',
+              'data': {
+                'subject_id': 5,
+                'subject_type': 'radical',
+                'srs_stage': 0,
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+    );
+
+    final assignments = await client.getLessonAssignments();
+
+    expect(assignments, hasLength(1));
+    expect(assignments[0].id, 200);
+    expect(assignments[0].subjectId, 5);
+  });
+
+  test('starts an assignment', () async {
+    final mockClient = MockClient((request) async {
+      expect(request.method, 'PUT');
+      expect(request.url.path, '/v2/assignments/200/start');
+
+      return http.Response('', 200);
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+    );
+
+    await client.startAssignment(200);
+  });
+
+  test(
+    'throws WaniKaniApiException when starting an assignment fails',
+    () async {
+      final client = WaniKaniApiClient(
+        tokenProvider: () async => 'test-token',
+        httpClient: MockClient((request) async => http.Response('', 500)),
+      );
+
+      await expectLater(
+        client.startAssignment(200),
+        throwsA(isA<WaniKaniApiException>()),
+      );
+    },
+  );
+
   test('returns the parsed subjects for the given ids', () async {
     final mockClient = MockClient((request) async {
       expect(request.url.path, '/v2/subjects');

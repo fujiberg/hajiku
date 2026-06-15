@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hajiku/src/core/settings/settings_controller.dart';
 import 'package:hajiku/src/core/wanikani/providers.dart';
+import 'package:hajiku/src/core/wanikani/models/wanikani_subject.dart';
 import 'package:hajiku/src/core/wanikani/wanikani_api_client.dart';
 import 'package:hajiku/src/features/review/models/review_session.dart';
 import 'package:hajiku/src/features/review/review_session_controller.dart';
@@ -288,6 +289,33 @@ void main() {
     expect(session.queue, hasLength(2));
     expect(session.queue.first.item, isNot(mistakenItem));
     expect(session.queue.last.item, mistakenItem);
+  });
+
+  test('seeds the session from PendingLessonQuizItems without fetching '
+      'review assignments', () async {
+    final container = buildContainer(
+      assignments: [],
+      subjects: [],
+      onReviewSubmitted: (_) =>
+          fail('should not fetch assignments or submit reviews'),
+    );
+
+    final radical = WaniKaniSubject.fromJson(radicalSubject);
+    final item = ReviewItem(assignmentId: 100, subject: radical);
+    PendingLessonQuizItems.seed([item]);
+
+    final session = await container.read(
+      reviewSessionControllerProvider.future,
+    );
+
+    expect(session.totalItems, 1);
+    expect(session.queue, hasLength(1));
+    expect(session.queue.single.item.subject, radical);
+    expect(
+      PendingLessonQuizItems.consume(),
+      isNull,
+      reason: 'the seed should be consumed',
+    );
   });
 
   test('limits the session to the configured reviewsPerSession', () async {

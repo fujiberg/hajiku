@@ -7,11 +7,53 @@ import '../../core/wanikani/providers.dart';
 import '../../core/wanikani/wanikani_exception.dart';
 import 'models/review_session.dart';
 
+/// One-shot "seed" slot for starting a review session from a fixed,
+/// already-fetched set of items (e.g. the lesson quiz) instead of fetching
+/// due reviews from WaniKani. Set just before navigating to [ReviewScreen],
+/// and consumed/cleared by [ReviewSessionController.build].
+///
+/// This is intentionally a plain static holder rather than a provider:
+/// Riverpod disallows a provider from writing to another provider's state
+/// while it is still building, which a consume-during-build pattern would
+/// require.
+abstract final class PendingLessonQuizItems {
+  static List<ReviewItem>? _items;
+
+  /// Seeds the next review session with [items].
+  static void seed(List<ReviewItem> items) => _items = items;
+
+  /// Returns the seeded items, if any, and clears them.
+  static List<ReviewItem>? consume() {
+    final items = _items;
+    _items = null;
+    return items;
+  }
+}
+
 /// Drives a single review session: builds the initial quiz queue, checks
 /// answers, and reports completed items back to WaniKani.
 class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   @override
   Future<ReviewSessionState> build() async {
+    final seeded = PendingLessonQuizItems.consume();
+    if (seeded != null) {
+      if (seeded.isEmpty) {
+        return const ReviewSessionState(
+          queue: [],
+          initialQueue: [],
+          totalItems: 0,
+          completedItems: 0,
+        );
+      }
+      final queue = buildQuizQueue(seeded);
+      return ReviewSessionState(
+        queue: queue,
+        initialQueue: List.of(queue),
+        totalItems: seeded.length,
+        completedItems: 0,
+      );
+    }
+
     final client = ref.watch(wanikaniApiClientProvider);
     final allAssignments = await client.getReviewAssignments();
 
@@ -35,25 +77,18 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     );
     final subjectsById = {for (final subject in subjects) subject.id: subject};
 
-    final queue = <ReviewQuiz>[];
-    var itemCount = 0;
+    final items = <ReviewItem>[];
     for (final assignment in assignments) {
       final subject = subjectsById[assignment.subjectId];
       if (subject == null) continue;
-
-      final item = ReviewItem(assignmentId: assignment.id, subject: subject);
-      itemCount++;
-      queue.add(ReviewQuiz(item: item, type: ReviewQuizType.meaning));
-      if (subject.readings.isNotEmpty) {
-        queue.add(ReviewQuiz(item: item, type: ReviewQuizType.reading));
-      }
+      items.add(ReviewItem(assignmentId: assignment.id, subject: subject));
     }
-    queue.shuffle(Random());
+    final queue = buildQuizQueue(items);
 
     return ReviewSessionState(
       queue: queue,
       initialQueue: List.of(queue),
-      totalItems: itemCount,
+      totalItems: items.length,
       completedItems: 0,
     );
   }

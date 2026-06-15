@@ -17,7 +17,11 @@ import 'review_session_controller.dart';
 /// items currently due, checks the user's typed answer, and reports
 /// completed items back to WaniKani.
 class ReviewScreen extends ConsumerWidget {
-  const ReviewScreen({super.key});
+  const ReviewScreen({super.key, this.title = 'Reviews'});
+
+  /// The app bar title. Defaults to "Reviews"; the lesson quiz reuses this
+  /// screen with the title "Lessons" instead.
+  final String title;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,11 +32,12 @@ class ReviewScreen extends ConsumerWidget {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) return;
         ref.invalidate(wanikaniReviewCountProvider);
+        ref.invalidate(wanikaniLessonCountProvider);
         ref.invalidate(wanikaniLevelProgressProvider);
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Reviews'),
+          title: Text(title),
           backgroundColor: subjectTypeColor,
           foregroundColor: subjectTypeColor != null ? Colors.white : null,
         ),

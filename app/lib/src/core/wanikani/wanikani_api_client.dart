@@ -66,6 +66,17 @@ class WaniKaniApiClient {
     return _getAllPages(uri, WaniKaniAssignment.fromJson);
   }
 
+  /// Fetches the assignments that currently have a lesson available,
+  /// regardless of level.
+  Future<List<WaniKaniAssignment>> getLessonAssignments() {
+    final uri = _baseUrl
+        .resolve('assignments')
+        .replace(
+          queryParameters: {'immediately_available_for_lessons': 'true'},
+        );
+    return _getAllPages(uri, WaniKaniAssignment.fromJson);
+  }
+
   /// Fetches the subjects (radicals/kanji/vocabulary) with the given [ids].
   Future<List<WaniKaniSubject>> getSubjects(List<int> ids) {
     if (ids.isEmpty) return Future.value(const []);
@@ -115,6 +126,39 @@ class WaniKaniApiClient {
           response.statusCode,
           'WaniKani API request to submit a review failed with status '
           '${response.statusCode}.',
+        );
+    }
+  }
+
+  /// Marks assignment [assignmentId] as started, which WaniKani requires
+  /// before a review result can be submitted for a lesson item.
+  Future<void> startAssignment(int assignmentId) async {
+    final token = await _tokenProvider();
+    if (token == null || token.isEmpty) {
+      throw const WaniKaniAuthException('No WaniKani API token configured.');
+    }
+
+    final response = await _httpClient.put(
+      _baseUrl.resolve('assignments/$assignmentId/start'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Wanikani-Revision': _apiRevision,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({}),
+    );
+
+    switch (response.statusCode) {
+      case 200:
+      case 201:
+        return;
+      case 401:
+        throw const WaniKaniAuthException('WaniKani API token was rejected.');
+      default:
+        throw WaniKaniApiException(
+          response.statusCode,
+          'WaniKani API request to start assignment $assignmentId failed '
+          'with status ${response.statusCode}.',
         );
     }
   }

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../../core/wanikani/models/wanikani_subject.dart';
 
 /// The two kinds of question asked for a subject during a review.
@@ -32,6 +34,20 @@ class ReviewItem {
   };
 
   bool get isComplete => completedTypes.containsAll(requiredTypes);
+}
+
+/// Builds a shuffled quiz queue from [items]: a meaning quiz for every item,
+/// plus a reading quiz for items that have readings.
+List<ReviewQuiz> buildQuizQueue(List<ReviewItem> items) {
+  final queue = <ReviewQuiz>[];
+  for (final item in items) {
+    queue.add(ReviewQuiz(item: item, type: ReviewQuizType.meaning));
+    if (item.subject.readings.isNotEmpty) {
+      queue.add(ReviewQuiz(item: item, type: ReviewQuizType.reading));
+    }
+  }
+  queue.shuffle(Random());
+  return queue;
 }
 
 /// A single question in the review queue.
