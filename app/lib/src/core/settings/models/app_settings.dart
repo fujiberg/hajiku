@@ -9,6 +9,8 @@ class AppSettings {
     this.submitReviewResultsEnabled = true,
     this.keyboardSubmitEnabled = true,
     this.invalidInputHapticFeedbackEnabled = true,
+    this.flickKeyboardEnabled = true,
+    this.flickKeyboardSubmitEnabled = true,
   });
 
   static const defaultLessonsPerSession = 5;
@@ -37,7 +39,7 @@ class AppSettings {
   /// flow against sample data without affecting WaniKani SRS progress.
   final bool submitReviewResultsEnabled;
 
-  /// Whether pressing Enter/Done on the keyboard submits an answer.
+  /// Whether pressing Enter/Done on the system keyboard submits an answer.
   ///
   /// Disabling this requires tapping the Submit button instead, to avoid
   /// accidentally submitting an answer when reaching for backspace.
@@ -46,6 +48,17 @@ class AppSettings {
   /// Whether to vibrate when Submit is pressed with an invalid answer (for
   /// example, an empty input).
   final bool invalidInputHapticFeedbackEnabled;
+
+  /// Whether to use the built-in flick kana keyboard for reading quizzes,
+  /// instead of the system keyboard with romaji-to-kana input.
+  final bool flickKeyboardEnabled;
+
+  /// Whether tapping the flick keyboard's Submit key submits an answer.
+  ///
+  /// Separate from [keyboardSubmitEnabled] since the flick keyboard's
+  /// Submit key is much larger and less prone to accidental taps than the
+  /// system keyboard's Enter key.
+  final bool flickKeyboardSubmitEnabled;
 
   AppSettings copyWith({
     int? lessonsPerSession,
@@ -56,6 +69,8 @@ class AppSettings {
     bool? submitReviewResultsEnabled,
     bool? keyboardSubmitEnabled,
     bool? invalidInputHapticFeedbackEnabled,
+    bool? flickKeyboardEnabled,
+    bool? flickKeyboardSubmitEnabled,
   }) {
     return AppSettings(
       lessonsPerSession: lessonsPerSession ?? this.lessonsPerSession,
@@ -71,6 +86,9 @@ class AppSettings {
       invalidInputHapticFeedbackEnabled:
           invalidInputHapticFeedbackEnabled ??
           this.invalidInputHapticFeedbackEnabled,
+      flickKeyboardEnabled: flickKeyboardEnabled ?? this.flickKeyboardEnabled,
+      flickKeyboardSubmitEnabled:
+          flickKeyboardSubmitEnabled ?? this.flickKeyboardSubmitEnabled,
     );
   }
 }

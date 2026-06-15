@@ -28,6 +28,7 @@ class FlickKanaKeyboard extends StatefulWidget {
     this.onCollapse,
     this.onSubmit,
     this.height = 260,
+    this.enabled = true,
   });
 
   /// The text field controller this keyboard inserts/deletes characters on.
@@ -44,6 +45,11 @@ class FlickKanaKeyboard extends StatefulWidget {
 
   /// The total height of the keyboard.
   final double height;
+
+  /// Whether the keyboard responds to input. When `false`, every key renders
+  /// in its disabled state and ignores taps/flicks - mirrors a disabled
+  /// [TextField].
+  final bool enabled;
 
   @override
   State<FlickKanaKeyboard> createState() => _FlickKanaKeyboardState();
@@ -325,12 +331,14 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
 
   Widget _buildCell(int row, int col) {
     final cell = FlickKanaLayout.grid[row][col];
-    final enabled = switch (cell) {
-      FlickCollapseCell() => widget.onCollapse != null,
-      FlickSubmitCell() => widget.onSubmit != null,
-      FlickModifierCell() => _modifierResult() != null,
-      _ => true,
-    };
+    final enabled =
+        widget.enabled &&
+        switch (cell) {
+          FlickCollapseCell() => widget.onCollapse != null,
+          FlickSubmitCell() => widget.onSubmit != null,
+          FlickModifierCell() => _modifierResult() != null,
+          _ => true,
+        };
 
     return FlickKey(
       cell: cell,

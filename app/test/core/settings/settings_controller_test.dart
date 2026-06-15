@@ -58,4 +58,47 @@ void main() {
       expect(reloaded.hapticFeedbackEnabled, isFalse);
     },
   );
+
+  test(
+    'setFlickKeyboardEnabled updates state and persists the value',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(settingsControllerProvider.future);
+
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setFlickKeyboardEnabled(false);
+
+      expect(
+        container.read(settingsControllerProvider).value?.flickKeyboardEnabled,
+        isFalse,
+      );
+      final reloaded = await container.read(settingsStorageProvider).read();
+      expect(reloaded.flickKeyboardEnabled, isFalse);
+    },
+  );
+
+  test(
+    'setFlickKeyboardSubmitEnabled updates state and persists the value',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(settingsControllerProvider.future);
+
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setFlickKeyboardSubmitEnabled(false);
+
+      expect(
+        container
+            .read(settingsControllerProvider)
+            .value
+            ?.flickKeyboardSubmitEnabled,
+        isFalse,
+      );
+      final reloaded = await container.read(settingsStorageProvider).read();
+      expect(reloaded.flickKeyboardSubmitEnabled, isFalse);
+    },
+  );
 }

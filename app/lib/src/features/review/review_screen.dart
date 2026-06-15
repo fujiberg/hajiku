@@ -8,7 +8,9 @@ import '../../core/romaji/romaji_kana_input_formatter.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/providers.dart';
+import '../../core/widgets/flick_keyboard/flick_kana_keyboard.dart';
 import '../../core/widgets/term_info_panel.dart';
+import '../settings/settings_screen.dart';
 import 'models/review_session.dart';
 import 'review_progress.dart';
 import 'review_session_controller.dart';
@@ -40,6 +42,15 @@ class ReviewScreen extends ConsumerWidget {
           title: Text(title),
           backgroundColor: subjectTypeColor,
           foregroundColor: subjectTypeColor != null ? Colors.white : null,
+          actions: [
+            IconButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+              ),
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+            ),
+          ],
         ),
         body: session.when(
           data: (session) {
@@ -134,7 +145,7 @@ class _QuizBody extends ConsumerStatefulWidget {
 }
 
 class _QuizBodyState extends ConsumerState<_QuizBody>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _romajiFormatter = RomajiKanaInputFormatter();
@@ -143,13 +154,72 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     duration: const Duration(milliseconds: 400),
   );
 
+  /// Whether the keyboard shown for the current reading question has been
+  /// switched away from the "Flick kana keyboard" setting's default (flick
+  /// vs. system). Toggled each time the user dismisses whichever keyboard is
+  /// currently shown; reset for each new question.
+  bool _readingKeyboardSwapped = false;
+
+  /// The bottom view inset (system keyboard height) as of the last
+  /// [didChangeMetrics] call, used to detect when the system keyboard
+  /// transitions from open to closed.
+  double _lastBottomInset = 0;
+
+  /// Drives the flick keyboard's slide in/out animation. The
+  /// [FlickKanaKeyboard] stays mounted at all times, sized via
+  /// [SizeTransition] - this keeps a continuous size signal for both
+  /// directions, unlike swapping between two different child widgets.
+  late final AnimationController _flickKeyboardAnimController;
+
+  /// Whether the flick keyboard was shown as of the last build, used to
+  /// detect when to forward/reverse [_flickKeyboardAnimController].
+  bool _flickKeyboardVisible = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _flickKeyboardVisible = _computeUseFlickKeyboard();
+    _flickKeyboardAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+      value: _flickKeyboardVisible ? 1 : 0,
+    );
     // Requesting focus immediately via `autofocus` can race with the page
     // transition on Android, leaving the field focused internally but
     // without an open keyboard/input connection. Request it after the
     // first frame instead.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  bool _computeUseFlickKeyboard() {
+    final settings = ref.read(settingsControllerProvider).value;
+    return widget.session.current?.type == ReviewQuizType.reading &&
+        (settings?.flickKeyboardEnabled ?? true) != _readingKeyboardSwapped;
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final bottomInset = View.of(context).viewInsets.bottom;
+    final wasOpen = _lastBottomInset > 0;
+    _lastBottomInset = bottomInset;
+
+    // Only react to an open-to-closed transition, not to the inset simply
+    // being zero (e.g. while it's still animating open).
+    if (!wasOpen || bottomInset > 0) return;
+
+    if (widget.session.current?.type != ReviewQuizType.reading) return;
+    final settings = ref.read(settingsControllerProvider).value;
+    final defaultFlick = settings?.flickKeyboardEnabled ?? true;
+    final useFlickKeyboard = defaultFlick != _readingKeyboardSwapped;
+    // The system keyboard was showing (either as the default, or because the
+    // flick keyboard was dismissed) and was just dismissed itself - switch to
+    // the flick keyboard.
+    if (useFlickKeyboard) return;
+    setState(() => _readingKeyboardSwapped = !_readingKeyboardSwapped);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
@@ -165,6 +235,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     } else if (oldWidget.session.feedback != null && feedback == null) {
       _controller.clear();
       _romajiFormatter.reset();
+      _readingKeyboardSwapped = false;
       // As in initState, request focus after the field has had a frame to
       // become enabled again, so the keyboard reliably reopens.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -175,9 +246,11 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _focusNode.dispose();
     _shakeController.dispose();
+    _flickKeyboardAnimController.dispose();
     super.dispose();
   }
 
@@ -204,7 +277,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     final controller = ref.read(reviewSessionControllerProvider.notifier);
     if (widget.session.feedback == null) {
       final isReading = widget.session.current!.type == ReviewQuizType.reading;
-      final answer = isReading ? _romajiFormatter.finalize() : _controller.text;
+      final settings = ref.read(settingsControllerProvider).value;
+      final useFlickKeyboard =
+          isReading &&
+          (settings?.flickKeyboardEnabled ?? true) != _readingKeyboardSwapped;
+      final answer = isReading && !useFlickKeyboard
+          ? _romajiFormatter.finalize()
+          : _controller.text;
       if (_validateInput(answer) != null) {
         _onInvalidInput();
         return;
@@ -236,7 +315,21 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     final showQuizTypeBar = subject.readings.isNotEmpty;
     final settings = ref.watch(settingsControllerProvider).value;
     final keyboardSubmitEnabled = settings?.keyboardSubmitEnabled ?? true;
+    final flickKeyboardSubmitEnabled =
+        settings?.flickKeyboardSubmitEnabled ?? true;
     final autoAdvanceEnabled = settings?.autoAdvanceEnabled ?? false;
+    final useFlickKeyboard =
+        quiz.type == ReviewQuizType.reading &&
+        (settings?.flickKeyboardEnabled ?? true) != _readingKeyboardSwapped;
+
+    if (useFlickKeyboard != _flickKeyboardVisible) {
+      _flickKeyboardVisible = useFlickKeyboard;
+      if (useFlickKeyboard) {
+        _flickKeyboardAnimController.forward();
+      } else {
+        _flickKeyboardAnimController.reverse();
+      }
+    }
 
     return Column(
       children: [
@@ -330,17 +423,32 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                           controller: _controller,
                           focusNode: _focusNode,
                           enabled: feedback == null,
+                          readOnly: useFlickKeyboard,
+                          showCursor: useFlickKeyboard ? true : null,
+                          keyboardType: useFlickKeyboard
+                              ? TextInputType.none
+                              : null,
                           autocorrect: false,
                           enableSuggestions: false,
-                          inputFormatters: quiz.type == ReviewQuizType.reading
+                          inputFormatters:
+                              quiz.type == ReviewQuizType.reading &&
+                                  !useFlickKeyboard
                               ? [_romajiFormatter]
                               : null,
                           textAlign: TextAlign.center,
-                          textInputAction: TextInputAction.done,
+                          textInputAction: keyboardSubmitEnabled
+                              ? TextInputAction.done
+                              : TextInputAction.newline,
                           style: const TextStyle(fontSize: 28),
                           onSubmitted: keyboardSubmitEnabled
                               ? (_) => _submit()
                               : null,
+                          // Without this, the default behavior for a
+                          // non-multiline field is to close the keyboard on
+                          // Enter even when onSubmitted is null.
+                          onEditingComplete: keyboardSubmitEnabled
+                              ? null
+                              : () {},
                           decoration: InputDecoration(
                             border: const UnderlineInputBorder(
                               borderSide: BorderSide(color: Colors.grey),
@@ -400,6 +508,27 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                 ),
               ],
             ),
+          ),
+        ),
+        SizeTransition(
+          alignment: Alignment.topCenter,
+          sizeFactor: _flickKeyboardAnimController,
+          child: FlickKanaKeyboard(
+            controller: _controller,
+            enabled: useFlickKeyboard && feedback == null,
+            onSubmit: flickKeyboardSubmitEnabled ? _submit : null,
+            onCollapse: () {
+              _focusNode.unfocus();
+              setState(
+                () => _readingKeyboardSwapped = !_readingKeyboardSwapped,
+              );
+              // As in initState, request focus after a frame so the
+              // system keyboard reliably opens once the field is no
+              // longer read-only.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _focusNode.requestFocus();
+              });
+            },
           ),
         ),
       ],

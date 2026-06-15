@@ -92,11 +92,19 @@ class _SettingsList extends ConsumerWidget {
         SwitchListTile(
           title: const Text('Submit with Enter key'),
           subtitle: const Text(
-            'Turn off to require tapping Submit, to avoid accidentally '
-            'submitting when you meant Backspace',
+            'On the system keyboard. Turn off to require tapping Submit, to '
+            'avoid accidentally submitting when you meant Backspace',
           ),
           value: settings.keyboardSubmitEnabled,
           onChanged: controller.setKeyboardSubmitEnabled,
+        ),
+        SwitchListTile(
+          title: const Text('Submit with flick keyboard'),
+          subtitle: const Text(
+            'Lets the flick keyboard\'s Submit key submit an answer',
+          ),
+          value: settings.flickKeyboardSubmitEnabled,
+          onChanged: controller.setFlickKeyboardSubmitEnabled,
         ),
         SwitchListTile(
           title: const Text('Haptic feedback for invalid answers'),
@@ -105,6 +113,15 @@ class _SettingsList extends ConsumerWidget {
           ),
           value: settings.invalidInputHapticFeedbackEnabled,
           onChanged: controller.setInvalidInputHapticFeedbackEnabled,
+        ),
+        SwitchListTile(
+          title: const Text('Flick kana keyboard'),
+          subtitle: const Text(
+            'Use the built-in flick keyboard for reading quizzes instead of '
+            'the system keyboard',
+          ),
+          value: settings.flickKeyboardEnabled,
+          onChanged: controller.setFlickKeyboardEnabled,
         ),
         const Divider(),
         const _SectionHeader('Developer'),

@@ -20,6 +20,8 @@ void main() {
     expect(settings.hapticFeedbackEnabled, isTrue);
     expect(settings.autoAdvanceEnabled, isFalse);
     expect(settings.vocabAudioEnabled, isTrue);
+    expect(settings.flickKeyboardEnabled, isTrue);
+    expect(settings.flickKeyboardSubmitEnabled, isTrue);
   });
 
   test('persisted values are returned on subsequent reads', () async {
@@ -30,6 +32,8 @@ void main() {
     await storage.setHapticFeedbackEnabled(false);
     await storage.setAutoAdvanceEnabled(true);
     await storage.setVocabAudioEnabled(false);
+    await storage.setFlickKeyboardEnabled(false);
+    await storage.setFlickKeyboardSubmitEnabled(false);
 
     final settings = await storage.read();
 
@@ -38,5 +42,7 @@ void main() {
     expect(settings.hapticFeedbackEnabled, isFalse);
     expect(settings.autoAdvanceEnabled, isTrue);
     expect(settings.vocabAudioEnabled, isFalse);
+    expect(settings.flickKeyboardEnabled, isFalse);
+    expect(settings.flickKeyboardSubmitEnabled, isFalse);
   });
 }

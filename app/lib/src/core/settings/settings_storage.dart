@@ -18,6 +18,9 @@ class SettingsStorage {
   static const _keyboardSubmitEnabledKey = 'settings_keyboard_submit_enabled';
   static const _invalidInputHapticFeedbackEnabledKey =
       'settings_invalid_input_haptic_feedback_enabled';
+  static const _flickKeyboardEnabledKey = 'settings_flick_keyboard_enabled';
+  static const _flickKeyboardSubmitEnabledKey =
+      'settings_flick_keyboard_submit_enabled';
 
   final SharedPreferencesAsync _preferences;
 
@@ -48,6 +51,12 @@ class SettingsStorage {
       invalidInputHapticFeedbackEnabled:
           await _preferences.getBool(_invalidInputHapticFeedbackEnabledKey) ??
           defaults.invalidInputHapticFeedbackEnabled,
+      flickKeyboardEnabled:
+          await _preferences.getBool(_flickKeyboardEnabledKey) ??
+          defaults.flickKeyboardEnabled,
+      flickKeyboardSubmitEnabled:
+          await _preferences.getBool(_flickKeyboardSubmitEnabledKey) ??
+          defaults.flickKeyboardSubmitEnabled,
     );
   }
 
@@ -74,6 +83,12 @@ class SettingsStorage {
 
   Future<void> setInvalidInputHapticFeedbackEnabled(bool value) =>
       _preferences.setBool(_invalidInputHapticFeedbackEnabledKey, value);
+
+  Future<void> setFlickKeyboardEnabled(bool value) =>
+      _preferences.setBool(_flickKeyboardEnabledKey, value);
+
+  Future<void> setFlickKeyboardSubmitEnabled(bool value) =>
+      _preferences.setBool(_flickKeyboardSubmitEnabledKey, value);
 }
 
 final settingsStorageProvider = Provider<SettingsStorage>(

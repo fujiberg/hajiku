@@ -4,7 +4,7 @@ This file is the entry point for Claude Code. Read this first, then refer to `.c
 
 ## What this project is
 
-Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. The planned core differentiator is a built-in 12-key flick kana input widget, eliminating the need to switch system keyboards during reviews. A romaji-to-kana input formatter is implemented and available now as an input mode, and will remain available alongside the flick input once built. iOS and Android only — the flick input is intentionally mobile-first.
+Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core differentiator is a built-in flick kana input widget, eliminating the need to switch system keyboards during reviews. It's wired into reading quizzes (reviews and lessons) behind a settings toggle ("Flick kana keyboard", on by default); when disabled, reading quizzes fall back to the system keyboard with a romaji-to-kana input formatter. iOS and Android only — the flick input is intentionally mobile-first.
 
 ## Stack
 

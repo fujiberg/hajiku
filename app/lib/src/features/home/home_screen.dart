@@ -5,7 +5,6 @@ import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/models/wanikani_user.dart';
 import '../../core/wanikani/providers.dart';
-import '../dev/flick_keyboard_demo_screen.dart';
 import '../lessons/lesson_screen.dart';
 import '../review/review_screen.dart';
 import '../settings/settings_screen.dart';
@@ -24,15 +23,6 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('弾く Hajiku'),
         actions: [
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const FlickKeyboardDemoScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.keyboard_outlined),
-            tooltip: 'Flick keyboard demo',
-          ),
           IconButton(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),

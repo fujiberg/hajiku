@@ -54,6 +54,18 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     );
   }
 
+  Future<void> setFlickKeyboardEnabled(bool value) async {
+    await ref.read(settingsStorageProvider).setFlickKeyboardEnabled(value);
+    _update((settings) => settings.copyWith(flickKeyboardEnabled: value));
+  }
+
+  Future<void> setFlickKeyboardSubmitEnabled(bool value) async {
+    await ref
+        .read(settingsStorageProvider)
+        .setFlickKeyboardSubmitEnabled(value);
+    _update((settings) => settings.copyWith(flickKeyboardSubmitEnabled: value));
+  }
+
   void _update(AppSettings Function(AppSettings settings) update) {
     final current = state.value;
     if (current != null) state = AsyncData(update(current));
