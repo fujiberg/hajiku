@@ -65,16 +65,6 @@ class _SettingsList extends ConsumerWidget {
           ),
           trailing: Text('${settings.reviewsPerSession}'),
         ),
-        const Divider(),
-        const _SectionHeader('Review experience'),
-        SwitchListTile(
-          title: const Text('Haptic feedback'),
-          subtitle: const Text(
-            'Quick buzz for correct answers, longer buzz for mistakes',
-          ),
-          value: settings.hapticFeedbackEnabled,
-          onChanged: controller.setHapticFeedbackEnabled,
-        ),
         SwitchListTile(
           title: const Text('Auto-advance'),
           subtitle: const Text(
@@ -89,14 +79,34 @@ class _SettingsList extends ConsumerWidget {
           value: settings.vocabAudioEnabled,
           onChanged: controller.setVocabAudioEnabled,
         ),
+        const Divider(),
+        const _SectionHeader('Haptic feedback'),
         SwitchListTile(
-          title: const Text('Submit with Enter key'),
+          title: const Text('Haptic feedback'),
           subtitle: const Text(
-            'On the system keyboard. Turn off to require tapping Submit, to '
-            'avoid accidentally submitting when you meant Backspace',
+            'Quick buzz for correct answers, longer buzz for mistakes',
           ),
-          value: settings.keyboardSubmitEnabled,
-          onChanged: controller.setKeyboardSubmitEnabled,
+          value: settings.hapticFeedbackEnabled,
+          onChanged: controller.setHapticFeedbackEnabled,
+        ),
+        SwitchListTile(
+          title: const Text('Haptic feedback for invalid answers'),
+          subtitle: const Text(
+            'Vibrate when Submit is pressed with an empty answer',
+          ),
+          value: settings.invalidInputHapticFeedbackEnabled,
+          onChanged: controller.setInvalidInputHapticFeedbackEnabled,
+        ),
+        const Divider(),
+        const _SectionHeader('Keyboard'),
+        SwitchListTile(
+          title: const Text('Flick kana keyboard'),
+          subtitle: const Text(
+            'Use the built-in flick keyboard for reading quizzes instead of '
+            'the system keyboard',
+          ),
+          value: settings.flickKeyboardEnabled,
+          onChanged: controller.setFlickKeyboardEnabled,
         ),
         SwitchListTile(
           title: const Text('Submit with flick keyboard'),
@@ -107,21 +117,13 @@ class _SettingsList extends ConsumerWidget {
           onChanged: controller.setFlickKeyboardSubmitEnabled,
         ),
         SwitchListTile(
-          title: const Text('Haptic feedback for invalid answers'),
+          title: const Text('Submit with Enter key'),
           subtitle: const Text(
-            'Vibrate when Submit is pressed with an empty answer',
+            'On the system keyboard. Turn off to require tapping Submit, to '
+            'avoid accidentally submitting when you meant Backspace',
           ),
-          value: settings.invalidInputHapticFeedbackEnabled,
-          onChanged: controller.setInvalidInputHapticFeedbackEnabled,
-        ),
-        SwitchListTile(
-          title: const Text('Flick kana keyboard'),
-          subtitle: const Text(
-            'Use the built-in flick keyboard for reading quizzes instead of '
-            'the system keyboard',
-          ),
-          value: settings.flickKeyboardEnabled,
-          onChanged: controller.setFlickKeyboardEnabled,
+          value: settings.keyboardSubmitEnabled,
+          onChanged: controller.setKeyboardSubmitEnabled,
         ),
         const Divider(),
         const _SectionHeader('Developer'),

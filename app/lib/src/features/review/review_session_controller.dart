@@ -119,7 +119,10 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     }
 
     state = AsyncData(
-      session.copyWith(feedback: ReviewAnswerFeedback(correct: correct)),
+      session.copyWith(
+        feedback: ReviewAnswerFeedback(correct: correct),
+        hasCorrectAnswer: session.hasCorrectAnswer || correct,
+      ),
     );
   }
 

@@ -148,7 +148,8 @@ class _LessonBrowseBody extends ConsumerWidget {
     unawaited(
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => const ReviewScreen(title: 'Lessons'),
+          builder: (_) =>
+              const ReviewScreen(title: 'Lessons', isLessonQuiz: true),
         ),
       ),
     );

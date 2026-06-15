@@ -74,6 +74,7 @@ class ReviewSessionState {
     required this.totalItems,
     required this.completedItems,
     this.feedback,
+    this.hasCorrectAnswer = false,
   });
 
   /// Remaining quizzes, in the order they'll be asked. Quizzes answered
@@ -96,6 +97,10 @@ class ReviewSessionState {
   /// been answered yet.
   final ReviewAnswerFeedback? feedback;
 
+  /// Whether at least one quiz in this session has been answered correctly.
+  /// Used to decide whether leaving the session would discard progress.
+  final bool hasCorrectAnswer;
+
   ReviewQuiz? get current => queue.isEmpty ? null : queue.first;
 
   bool get isFinished => queue.isEmpty;
@@ -105,6 +110,7 @@ class ReviewSessionState {
     int? completedItems,
     ReviewAnswerFeedback? feedback,
     bool clearFeedback = false,
+    bool? hasCorrectAnswer,
   }) {
     return ReviewSessionState(
       queue: queue ?? this.queue,
@@ -112,6 +118,7 @@ class ReviewSessionState {
       totalItems: totalItems,
       completedItems: completedItems ?? this.completedItems,
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
+      hasCorrectAnswer: hasCorrectAnswer ?? this.hasCorrectAnswer,
     );
   }
 }

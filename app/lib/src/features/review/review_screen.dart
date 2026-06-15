@@ -18,28 +18,56 @@ import 'review_session_controller.dart';
 /// Runs a review session: presents one meaning/reading quiz at a time for
 /// items currently due, checks the user's typed answer, and reports
 /// completed items back to WaniKani.
-class ReviewScreen extends ConsumerWidget {
-  const ReviewScreen({super.key, this.title = 'Reviews'});
+class ReviewScreen extends ConsumerStatefulWidget {
+  const ReviewScreen({
+    super.key,
+    this.title = 'Reviews',
+    this.isLessonQuiz = false,
+  });
 
   /// The app bar title. Defaults to "Reviews"; the lesson quiz reuses this
   /// screen with the title "Lessons" instead.
   final String title;
 
+  /// Whether this is the quiz phase of a lesson session, reached via "Start
+  /// quiz" on [LessonScreen]. Lessons quizzed this way have already had their
+  /// assignments started on WaniKani, so leaving always warns about losing
+  /// progress, regardless of whether any answer has been given yet.
+  final bool isLessonQuiz;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReviewScreen> createState() => _ReviewScreenState();
+}
+
+class _ReviewScreenState extends ConsumerState<ReviewScreen> {
+  /// Set once the user has confirmed leaving via [_confirmExit], so the
+  /// follow-up [Navigator.pop] is allowed through without prompting again.
+  bool _confirmedExit = false;
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(reviewSessionControllerProvider);
     final subjectTypeColor = session.value?.current?.item.subject.type.color;
+    final needsExitConfirmation = _needsExitConfirmation(session.value);
 
     return PopScope(
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) return;
-        ref.invalidate(wanikaniReviewCountProvider);
-        ref.invalidate(wanikaniLessonCountProvider);
-        ref.invalidate(wanikaniLevelProgressProvider);
+      canPop: _confirmedExit || !needsExitConfirmation,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          ref.invalidate(wanikaniReviewCountProvider);
+          ref.invalidate(wanikaniLessonCountProvider);
+          ref.invalidate(wanikaniLevelProgressProvider);
+          return;
+        }
+        final confirmed = await _confirmExit(context);
+        if (confirmed && context.mounted) {
+          setState(() => _confirmedExit = true);
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(title),
+          title: Text(widget.title),
           backgroundColor: subjectTypeColor,
           foregroundColor: subjectTypeColor != null ? Colors.white : null,
           actions: [
@@ -66,6 +94,41 @@ class ReviewScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Whether leaving this screen now would discard meaningful progress and
+  /// should be confirmed first.
+  bool _needsExitConfirmation(ReviewSessionState? session) {
+    if (session == null || session.totalItems == 0 || session.isFinished) {
+      return false;
+    }
+    return widget.isLessonQuiz || session.hasCorrectAnswer;
+  }
+
+  Future<bool> _confirmExit(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave session?'),
+        content: Text(
+          widget.isLessonQuiz
+              ? 'These lessons have already started. If you leave now, '
+                    'your quiz progress will be lost.'
+              : 'Your progress in this session will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 }
 
