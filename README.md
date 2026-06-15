@@ -2,17 +2,18 @@
 
 A cross-platform Flutter app for [WaniKani](https://www.wanikani.com) reviews and lessons.
 
-> **Status: early development** — not yet functional.
+> **Status: early development** — core flows (onboarding, home, reviews, lessons, settings) are working; many features still in progress.
 
 ## Why
 
 WaniKani has no official mobile app. Third-party options all rely on the system keyboard, forcing manual switching between English and Japanese input during reviews. Hajiku solves this with a built-in 12-key flick kana input widget — no keyboard switching needed.
 
-## Features (planned)
+## Features
 
 - Review and lesson queue powered by the WaniKani API v2
-- Built-in 12-key flick kana input — no system keyboard switching
-- Offline queue with local caching
+- Romaji-to-kana input for reviews — type romaji on the system keyboard, converted to kana automatically
+- Built-in 12-key flick kana input (planned) — no system keyboard switching
+- Offline queue with local caching (planned)
 - Clean, focused UI optimised for mobile and tablet
 
 ## Platform

@@ -4,13 +4,13 @@ This file is the entry point for Claude Code. Read this first, then refer to `.c
 
 ## What this project is
 
-Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. The core differentiator is a built-in 12-key flick kana input widget, eliminating the need to switch system keyboards during reviews. iOS and Android only — the flick input is intentionally mobile-first.
+Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. The planned core differentiator is a built-in 12-key flick kana input widget, eliminating the need to switch system keyboards during reviews. A romaji-to-kana input formatter is implemented and available now as an input mode, and will remain available alongside the flick input once built. iOS and Android only — the flick input is intentionally mobile-first.
 
 ## Stack
 
 - **Flutter / Dart** — mobile first, iOS + Android
 - **WaniKani API v2** — token-based auth, no backend
-- **Local storage** — TBD (SQLite or Hive) for offline queue and caching
+- **Local storage** — `flutter_secure_storage` for the WaniKani API token, `shared_preferences` for app settings. Offline queue/caching strategy still TBD.
 
 ## Repo structure
 
@@ -19,6 +19,12 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. The core diff
   - `lib/main.dart` — entry point
   - `lib/src/app.dart` — root `HajikuApp` widget (theme, routing)
   - `lib/src/core/` — shared utilities, theming, constants
+    - `auth/` — auth controller (API token state)
+    - `storage/` — secure token storage
+    - `romaji/` — romaji-to-kana conversion and input formatter
+    - `settings/` — app settings (persisted via `shared_preferences`)
+    - `wanikani/` — WaniKani API v2 client and models
+    - `widgets/` — shared widgets (e.g. `TermInfoPanel`)
   - `lib/src/features/` — feature modules, one directory per feature (added as built)
   - `test/` — widget and unit tests
 
@@ -31,6 +37,5 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. The core diff
 
 ## Further reading
 
-- `.claude/conventions.md` — coding conventions and naming (added as project matures)
-- `.claude/api-wanikani.md` — WaniKani API v2 notes (added when API layer is built)
+- `.claude/api-wanikani.md` — WaniKani API v2 notes
 - `.claude/widget-flick-input.md` — flick keyboard design and constraints (added when widget is built)
