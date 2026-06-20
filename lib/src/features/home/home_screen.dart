@@ -77,7 +77,31 @@ class _Dashboard extends ConsumerWidget {
             ),
           ],
         ),
-        Text('Welcome back, ${user.username}'),
+        Row(
+          children: [
+            Text('Welcome back, ${user.username}'),
+            if (user.subscription.isLifetime) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.workspace_premium,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ],
+          ],
+        ),
+        if (user.subscription.isFree)
+          _SubscriptionBanner(
+            message: 'Free plan · levels 1–3 only',
+            icon: Icons.info_outline,
+            isWarning: false,
+          )
+        else if (user.subscription.isLapsed)
+          _SubscriptionBanner(
+            message: 'Subscription inactive · reviews limited to levels 1–3',
+            icon: Icons.warning_amber_outlined,
+            isWarning: true,
+          ),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -104,7 +128,7 @@ class _Dashboard extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 24),
-        Text('To Guru', style: Theme.of(context).textTheme.titleMedium),
+        Text('To level up', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         progress.when(
           data: (assignments) => _ProgressTiles(assignments: assignments),
@@ -209,6 +233,37 @@ class _ProgressTiles extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _SubscriptionBanner extends StatelessWidget {
+  const _SubscriptionBanner({
+    required this.message,
+    required this.icon,
+    required this.isWarning,
+  });
+
+  final String message;
+  final IconData icon;
+  final bool isWarning;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = isWarning ? colorScheme.error : colorScheme.secondary;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            message,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+          ),
+        ],
+      ),
     );
   }
 }
