@@ -39,6 +39,7 @@ dependencies:
   flutter_riverpod: ^3.3.2
   shared_preferences: ^2.5.5
   audioplayers: ^6.7.1
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

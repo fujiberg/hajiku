@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
+import '../theme/srs_stage_style.dart';
 import 'models/wanikani_assignment.dart';
 import 'models/wanikani_level_progression.dart';
 import 'models/wanikani_user.dart';
@@ -56,3 +57,27 @@ final wanikaniReviewCountProvider = FutureProvider<int>((ref) {
       .watch(wanikaniApiClientProvider)
       .getAssignmentCount(immediatelyAvailableForReview: true);
 });
+
+/// Upcoming reviews due within the next 24 hours (including any overdue),
+/// used to chart the review queue's growth over time.
+final wanikaniReviewForecastProvider = FutureProvider<List<WaniKaniAssignment>>(
+  (ref) {
+    return ref
+        .watch(wanikaniApiClientProvider)
+        .getUpcomingReviewAssignments(
+          before: DateTime.now().add(const Duration(hours: 24)),
+        );
+  },
+);
+
+/// Counts, across all levels, of assignments in each [SrsStageBucket].
+final wanikaniSrsDistributionProvider =
+    FutureProvider<Map<SrsStageBucket, int>>((ref) async {
+      final client = ref.watch(wanikaniApiClientProvider);
+      final counts = await Future.wait(
+        SrsStageBucket.values.map(
+          (bucket) => client.getAssignmentCount(srsStages: bucket.stages),
+        ),
+      );
+      return Map.fromIterables(SrsStageBucket.values, counts);
+    });

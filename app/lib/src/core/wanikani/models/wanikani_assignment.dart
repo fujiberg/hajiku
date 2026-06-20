@@ -24,15 +24,9 @@ enum WaniKaniSubjectType {
 
 /// A user's progress on a single subject, as returned by `GET /assignments`.
 class WaniKaniAssignment {
-  const WaniKaniAssignment({
-    required this.id,
-    required this.subjectId,
-    required this.subjectType,
-    required this.srsStage,
-  });
-
   factory WaniKaniAssignment.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>;
+    final availableAt = data['available_at'] as String?;
     return WaniKaniAssignment(
       id: json['id'] as int,
       subjectId: data['subject_id'] as int,
@@ -40,8 +34,17 @@ class WaniKaniAssignment {
         data['subject_type'] as String,
       ),
       srsStage: data['srs_stage'] as int,
+      availableAt: availableAt == null ? null : DateTime.parse(availableAt),
     );
   }
+
+  const WaniKaniAssignment({
+    required this.id,
+    required this.subjectId,
+    required this.subjectType,
+    required this.srsStage,
+    this.availableAt,
+  });
 
   /// The assignment's own ID, used when submitting review results.
   final int id;
@@ -51,4 +54,8 @@ class WaniKaniAssignment {
 
   final WaniKaniSubjectType subjectType;
   final int srsStage;
+
+  /// When this assignment's next review becomes available, or `null` if it
+  /// has no upcoming review (not yet started, or burned).
+  final DateTime? availableAt;
 }

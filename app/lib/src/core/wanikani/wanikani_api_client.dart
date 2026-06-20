@@ -77,6 +77,23 @@ class WaniKaniApiClient {
     return _getAllPages(uri, WaniKaniAssignment.fromJson);
   }
 
+  /// Fetches assignments whose next review is due before [before],
+  /// including any already overdue. Burned items (which have no further
+  /// reviews) and not-yet-started items (lessons) are excluded.
+  Future<List<WaniKaniAssignment>> getUpcomingReviewAssignments({
+    required DateTime before,
+  }) {
+    final uri = _baseUrl
+        .resolve('assignments')
+        .replace(
+          queryParameters: {
+            'srs_stages': '1,2,3,4,5,6,7,8',
+            'available_before': before.toUtc().toIso8601String(),
+          },
+        );
+    return _getAllPages(uri, WaniKaniAssignment.fromJson);
+  }
+
   /// Fetches the subjects (radicals/kanji/vocabulary) with the given [ids].
   Future<List<WaniKaniSubject>> getSubjects(List<int> ids) {
     if (ids.isEmpty) return Future.value(const []);
@@ -185,9 +202,12 @@ class WaniKaniApiClient {
 
   /// Returns the number of assignments with lessons or reviews
   /// immediately available, without fetching the underlying subject data.
+  /// If [srsStages] is given, only assignments at one of those SRS stages
+  /// are counted.
   Future<int> getAssignmentCount({
     bool? immediatelyAvailableForLessons,
     bool? immediatelyAvailableForReview,
+    List<int>? srsStages,
   }) async {
     final uri = _baseUrl
         .resolve('assignments')
@@ -200,6 +220,7 @@ class WaniKaniApiClient {
             if (immediatelyAvailableForReview != null)
               'immediately_available_for_review':
                   '$immediatelyAvailableForReview',
+            if (srsStages != null) 'srs_stages': srsStages.join(','),
           },
         );
 

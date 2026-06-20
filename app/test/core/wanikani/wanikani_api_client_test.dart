@@ -469,4 +469,117 @@ void main() {
       throwsA(isA<WaniKaniApiException>()),
     );
   });
+
+  test('includes srs_stages when counting assignments', () async {
+    final mockClient = MockClient((request) async {
+      expect(request.url.queryParameters['per_page'], '1');
+      expect(request.url.queryParameters['srs_stages'], '1,2,3,4');
+
+      return http.Response(
+        jsonEncode({
+          'total_count': 7,
+          'pages': {'next_url': null},
+          'data': <Object>[],
+        }),
+        200,
+      );
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+    );
+
+    final count = await client.getAssignmentCount(srsStages: [1, 2, 3, 4]);
+
+    expect(count, 7);
+  });
+
+  test('returns upcoming review assignments before the given time', () async {
+    final before = DateTime.utc(2026, 6, 16);
+
+    final mockClient = MockClient((request) async {
+      expect(request.url.path, '/v2/assignments');
+      expect(request.url.queryParameters['srs_stages'], '1,2,3,4,5,6,7,8');
+      expect(
+        request.url.queryParameters['available_before'],
+        before.toIso8601String(),
+      );
+
+      return http.Response(
+        jsonEncode({
+          'pages': {'next_url': null},
+          'data': [
+            {
+              'id': 100,
+              'object': 'assignment',
+              'data': {
+                'subject_id': 1,
+                'subject_type': 'radical',
+                'srs_stage': 1,
+                'available_at': '2026-06-15T01:00:00.000Z',
+              },
+            },
+            {
+              'id': 101,
+              'object': 'assignment',
+              'data': {
+                'subject_id': 2,
+                'subject_type': 'kanji',
+                'srs_stage': 6,
+                'available_at': '2026-06-15T08:00:00.000Z',
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+    );
+
+    final assignments = await client.getUpcomingReviewAssignments(
+      before: before,
+    );
+
+    expect(assignments, hasLength(2));
+    expect(assignments[0].srsStage, 1);
+    expect(assignments[0].availableAt, DateTime.utc(2026, 6, 15, 1));
+    expect(assignments[1].srsStage, 6);
+    expect(assignments[1].availableAt, DateTime.utc(2026, 6, 15, 8));
+  });
+
+  test('parses an assignment without an available_at', () async {
+    final mockClient = MockClient((request) async {
+      return http.Response(
+        jsonEncode({
+          'pages': {'next_url': null},
+          'data': [
+            {
+              'id': 100,
+              'object': 'assignment',
+              'data': {
+                'subject_id': 1,
+                'subject_type': 'radical',
+                'srs_stage': 9,
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+    );
+
+    final assignments = await client.getReviewAssignments();
+
+    expect(assignments[0].availableAt, isNull);
+  });
 }

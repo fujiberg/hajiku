@@ -8,6 +8,8 @@ import '../../core/wanikani/providers.dart';
 import '../lessons/lesson_screen.dart';
 import '../review/review_screen.dart';
 import '../settings/settings_screen.dart';
+import 'widgets/review_forecast_chart.dart';
+import 'widgets/srs_progress_chart.dart';
 
 /// Landing screen shown once a WaniKani API token has been validated and
 /// stored. Shows the user's level progress and entry points into lessons
@@ -51,6 +53,8 @@ class _Dashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = ref.watch(wanikaniLevelProgressProvider);
     final levelStartedAt = ref.watch(wanikaniCurrentLevelStartedAtProvider);
+    final reviewForecast = ref.watch(wanikaniReviewForecastProvider);
+    final srsDistribution = ref.watch(wanikaniSrsDistributionProvider);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -73,18 +77,7 @@ class _Dashboard extends ConsumerWidget {
           ],
         ),
         Text('Welcome back, ${user.username}'),
-        const SizedBox(height: 24),
-        Text('To Guru', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        progress.when(
-          data: (assignments) => _ProgressTiles(assignments: assignments),
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (error, _) => Text('Failed to load progress: $error'),
-        ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -108,6 +101,35 @@ class _Dashboard extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 24),
+        Text('To Guru', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        progress.when(
+          data: (assignments) => _ProgressTiles(assignments: assignments),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => Text('Failed to load progress: $error'),
+        ),
+        const SizedBox(height: 24),
+        reviewForecast.when(
+          data: (assignments) => ReviewForecastChart(assignments: assignments),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => Text('Failed to load forecast: $error'),
+        ),
+        const SizedBox(height: 16),
+        srsDistribution.when(
+          data: (distribution) => SrsProgressChart(distribution: distribution),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => Text('Failed to load SRS progress: $error'),
         ),
       ],
     );
