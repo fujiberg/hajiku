@@ -208,13 +208,18 @@ class _ProgressTiles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final counts = <WaniKaniSubjectType, int>{};
+    final totals = <WaniKaniSubjectType, int>{};
+    final gurued = <WaniKaniSubjectType, int>{};
+
     for (final assignment in assignments) {
       // Kana vocabulary is shown together with regular vocabulary.
       final type = assignment.subjectType == WaniKaniSubjectType.kanaVocabulary
           ? WaniKaniSubjectType.vocabulary
           : assignment.subjectType;
-      counts.update(type, (count) => count + 1, ifAbsent: () => 1);
+      totals.update(type, (n) => n + 1, ifAbsent: () => 1);
+      if (assignment.srsStage >= 5) {
+        gurued.update(type, (n) => n + 1, ifAbsent: () => 1);
+      }
     }
 
     const types = [
@@ -229,7 +234,11 @@ class _ProgressTiles extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _ProgressTile(type: type, count: counts[type] ?? 0),
+              child: _ProgressTile(
+                type: type,
+                gurued: gurued[type] ?? 0,
+                total: totals[type] ?? 0,
+              ),
             ),
           ),
       ],
@@ -270,10 +279,15 @@ class _SubscriptionBanner extends StatelessWidget {
 
 /// A single subject-type tile, colored per WaniKani's item type convention.
 class _ProgressTile extends StatelessWidget {
-  const _ProgressTile({required this.type, required this.count});
+  const _ProgressTile({
+    required this.type,
+    required this.gurued,
+    required this.total,
+  });
 
   final WaniKaniSubjectType type;
-  final int count;
+  final int gurued;
+  final int total;
 
   static const _glyphSize = 32.0;
 
@@ -281,6 +295,7 @@ class _ProgressTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = type.color;
     final watermarkColor = color.withValues(alpha: 0.4);
+    final mutedColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -294,6 +309,7 @@ class _ProgressTile extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 type.glyph,
@@ -305,12 +321,25 @@ class _ProgressTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '$count',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$gurued',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      height: 1,
+                    ),
+                  ),
+                  Text(
+                    '/$total',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: mutedColor,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

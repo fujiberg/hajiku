@@ -25,12 +25,11 @@ class WaniKaniApiClient {
     return WaniKaniUser.fromJson(json);
   }
 
-  /// Fetches the user's assignments (progress) for subjects at [level],
-  /// optionally restricted to the given [srsStages]. Defaults to stages
-  /// below Guru (0-4), i.e. items still needed to level up.
+  /// Fetches the user's assignments (progress) for subjects at [level].
+  /// Pass [srsStages] to restrict to specific stages; omit for all stages.
   Future<List<WaniKaniAssignment>> getAssignments({
     required int level,
-    List<int> srsStages = const [0, 1, 2, 3, 4],
+    List<int>? srsStages,
   }) async {
     final assignments = <WaniKaniAssignment>[];
     Uri? uri = _baseUrl
@@ -38,7 +37,7 @@ class WaniKaniApiClient {
         .replace(
           queryParameters: {
             'levels': '$level',
-            'srs_stages': srsStages.join(','),
+            if (srsStages != null) 'srs_stages': srsStages.join(','),
           },
         );
 

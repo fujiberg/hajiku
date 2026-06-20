@@ -18,8 +18,8 @@ final wanikaniUserProvider = FutureProvider<WaniKaniUser>((ref) {
   return ref.watch(wanikaniApiClientProvider).getUser();
 });
 
-/// Assignments for the user's current level that are not yet at Guru,
-/// i.e. the items still needed to level up.
+/// All assignments for the user's current level, across all SRS stages.
+/// Used to show Guru'd vs total progress per subject type.
 final wanikaniLevelProgressProvider = FutureProvider<List<WaniKaniAssignment>>((
   ref,
 ) async {
