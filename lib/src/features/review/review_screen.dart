@@ -11,10 +11,12 @@ import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/providers.dart';
 import '../../core/widgets/flick_keyboard/flick_kana_keyboard.dart';
 import '../../core/widgets/term_info_panel.dart';
+import '../lessons/lesson_screen.dart';
 import '../settings/settings_screen.dart';
 import 'models/review_session.dart';
 import 'review_progress.dart';
 import 'review_session_controller.dart';
+import 'review_summary.dart';
 
 /// Runs a review session: presents one meaning/reading quiz at a time for
 /// items currently due, checks the user's typed answer, and reports
@@ -44,6 +46,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   /// Set once the user has confirmed leaving via [_confirmExit], so the
   /// follow-up [Navigator.pop] is allowed through without prompting again.
   bool _confirmedExit = false;
+
+  /// The user's WaniKani level captured before the first quiz is shown, used
+  /// to detect a level-up on the summary screen.
+  int? _levelAtStart;
+
+  /// Whether [wanikaniUserProvider] has been invalidated for the post-session
+  /// re-fetch. Guards against re-invalidating on every rebuild.
+  bool _levelUpCheckTriggered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +94,36 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         body: session.when(
           data: (session) {
             if (session.totalItems == 0) return const _EmptyState();
+            _levelAtStart ??= ref.read(wanikaniUserProvider).value?.level;
             if (session.isFinished) {
-              return _SessionSummary(itemCount: session.totalItems);
+              if (!_levelUpCheckTriggered) {
+                _levelUpCheckTriggered = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    ref.invalidate(wanikaniUserProvider);
+                    ref.invalidate(wanikaniReviewCountProvider);
+                    ref.invalidate(wanikaniLessonCountProvider);
+                  }
+                });
+              }
+              return ReviewSummary(
+                items: {for (final q in session.initialQueue) q.item}.toList(),
+                priorLevel: _levelAtStart,
+                onNextReviews: widget.isLessonQuiz
+                    ? null
+                    : () => Navigator.of(context).pushReplacement(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ReviewScreen(title: widget.title),
+                        ),
+                      ),
+                onNextLessons: widget.isLessonQuiz
+                    ? () => Navigator.of(context).pushReplacement(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const LessonScreen(),
+                        ),
+                      )
+                    : null,
+              );
             }
             return _QuizBody(session: session);
           },
@@ -149,37 +187,6 @@ class _EmptyState extends StatelessWidget {
             FilledButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Back'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SessionSummary extends StatelessWidget {
-  const _SessionSummary({required this.itemCount});
-
-  final int itemCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Session complete!',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text('Reviewed $itemCount item${itemCount == 1 ? '' : 's'}.'),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Done'),
             ),
           ],
         ),

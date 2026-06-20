@@ -266,3 +266,4 @@ class _ProgressTile extends StatelessWidget {
     );
   }
 }
+
