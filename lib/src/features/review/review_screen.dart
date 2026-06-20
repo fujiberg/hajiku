@@ -415,6 +415,9 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
         _ReviewProgressBar(session: session, backgroundColor: color),
         Expanded(
           child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.paddingOf(context).bottom,
+            ),
             child: Column(
               children: [
                 Container(
@@ -507,8 +510,9 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                           keyboardType: useFlickKeyboard
                               ? TextInputType.none
                               : null,
-                          autocorrect: false,
-                          enableSuggestions: false,
+                          autocorrect: quiz.type != ReviewQuizType.reading,
+                          enableSuggestions:
+                              quiz.type != ReviewQuizType.reading,
                           inputFormatters:
                               quiz.type == ReviewQuizType.reading &&
                                   !useFlickKeyboard
