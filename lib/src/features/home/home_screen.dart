@@ -56,8 +56,9 @@ class _Dashboard extends ConsumerWidget {
     final reviewForecast = ref.watch(wanikaniReviewForecastProvider);
     final srsDistribution = ref.watch(wanikaniSrsDistributionProvider);
 
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,

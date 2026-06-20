@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -212,6 +213,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _romajiFormatter = RomajiKanaInputFormatter();
+  final _audioPlayer = AudioPlayer();
   late final _shakeController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 400),
@@ -314,6 +316,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     _focusNode.dispose();
     _shakeController.dispose();
     _flickKeyboardAnimController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -327,12 +330,25 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
       }
     }
 
-    if (feedback.correct && (settings?.autoAdvanceEnabled ?? false)) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          ref.read(reviewSessionControllerProvider.notifier).next();
+    if (feedback.correct) {
+      if (settings?.vocabAudioEnabled ?? true) {
+        final audios = widget.session.current?.item.subject.pronunciationAudios;
+        if (audios != null && audios.isNotEmpty) {
+          final audio = audios.firstWhere(
+            (a) => a.contentType == 'audio/mpeg',
+            orElse: () => audios.first,
+          );
+          _audioPlayer.play(UrlSource(audio.url));
         }
-      });
+      }
+
+      if (settings?.autoAdvanceEnabled ?? false) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            ref.read(reviewSessionControllerProvider.notifier).next();
+          }
+        });
+      }
     }
   }
 
