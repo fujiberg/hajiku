@@ -2,6 +2,8 @@
 
 This file is the entry point for Claude Code. Read this first, then refer to `.claude/` for deeper topic-specific docs as they are added.
 
+**Always check `.claude/` for documentation relevant to what you're about to work on before starting** — these docs capture design and constraints that aren't obvious from the code alone, and reading them first avoids re-deriving everything by parsing the codebase. **Keep this file and the `.claude/` docs up to date as the project changes**: when a change makes a doc inaccurate, fix the doc in the same change; when a new area becomes worth documenting, add a doc and link it under "Further reading".
+
 ## What this project is
 
 Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core differentiator is a built-in flick kana input widget, eliminating the need to switch system keyboards during reviews. It's wired into reading quizzes (reviews and lessons) behind a settings toggle ("Flick kana keyboard", on by default); when disabled, reading quizzes fall back to the system keyboard with a romaji-to-kana input formatter. iOS and Android only — the flick input is intentionally mobile-first.
@@ -37,4 +39,4 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core diff
 ## Further reading
 
 - `.claude/api-wanikani.md` — WaniKani API v2 notes
-- `.claude/widget-flick-input.md` — flick keyboard design and constraints (added when widget is built)
+- `.claude/widget-flick-input.md` — flick kana keyboard design, gestures, and constraints

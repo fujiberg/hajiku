@@ -3,9 +3,29 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings/settings_controller.dart';
+import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/providers.dart';
+import '../../core/wanikani/wanikani_api_client.dart';
 import '../../core/wanikani/wanikani_exception.dart';
 import 'models/review_session.dart';
+
+/// Fetches the subjects for [assignments] and pairs each with its assignment
+/// into a [ReviewItem], in the given order. Assignments whose subject can't be
+/// fetched are dropped. Shared by the review and lesson session controllers.
+Future<List<ReviewItem>> fetchReviewItems(
+  WaniKaniApiClient client,
+  List<WaniKaniAssignment> assignments,
+) async {
+  final subjects = await client.getSubjects(
+    assignments.map((a) => a.subjectId).toList(),
+  );
+  final subjectsById = {for (final subject in subjects) subject.id: subject};
+  return [
+    for (final assignment in assignments)
+      if (subjectsById[assignment.subjectId] case final subject?)
+        ReviewItem(assignmentId: assignment.id, subject: subject),
+  ];
+}
 
 /// One-shot "seed" slot for starting a review session from a fixed,
 /// already-fetched set of items (e.g. the lesson quiz) instead of fetching
@@ -37,34 +57,13 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   Future<ReviewSessionState> build() async {
     final seeded = PendingLessonQuizItems.consume();
     if (seeded != null) {
-      if (seeded.isEmpty) {
-        return const ReviewSessionState(
-          queue: [],
-          initialQueue: [],
-          totalItems: 0,
-          completedItems: 0,
-        );
-      }
-      final queue = buildQuizQueue(seeded);
-      return ReviewSessionState(
-        queue: queue,
-        initialQueue: List.of(queue),
-        totalItems: seeded.length,
-        completedItems: 0,
-      );
+      return _stateFor(seeded);
     }
 
     final client = ref.watch(wanikaniApiClientProvider);
     final allAssignments = await client.getReviewAssignments();
 
-    if (allAssignments.isEmpty) {
-      return const ReviewSessionState(
-        queue: [],
-        initialQueue: [],
-        totalItems: 0,
-        completedItems: 0,
-      );
-    }
+    if (allAssignments.isEmpty) return const ReviewSessionState.empty();
 
     final settings = await ref.watch(settingsControllerProvider.future);
     allAssignments.shuffle(Random());
@@ -72,19 +71,14 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         .take(settings.reviewsPerSession)
         .toList();
 
-    final subjects = await client.getSubjects(
-      assignments.map((a) => a.subjectId).toList(),
-    );
-    final subjectsById = {for (final subject in subjects) subject.id: subject};
+    return _stateFor(await fetchReviewItems(client, assignments));
+  }
 
-    final items = <ReviewItem>[];
-    for (final assignment in assignments) {
-      final subject = subjectsById[assignment.subjectId];
-      if (subject == null) continue;
-      items.add(ReviewItem(assignmentId: assignment.id, subject: subject));
-    }
+  /// Builds the initial session state for [items], or an empty session if
+  /// there are none.
+  ReviewSessionState _stateFor(List<ReviewItem> items) {
+    if (items.isEmpty) return const ReviewSessionState.empty();
     final queue = buildQuizQueue(items);
-
     return ReviewSessionState(
       queue: queue,
       initialQueue: List.of(queue),
@@ -170,6 +164,12 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   Future<void> _submitReview(ReviewItem item) async {
     final settings = await ref.read(settingsControllerProvider.future);
     if (!settings.submitReviewResultsEnabled) return;
+
+    // This runs after the session has advanced, and (with auto-advance) from a
+    // delayed callback - the auto-dispose provider may have been disposed in
+    // the meantime, e.g. if the user left the screen. Reading another provider
+    // through a disposed ref throws, so bail out instead.
+    if (!ref.mounted) return;
 
     await ref
         .read(wanikaniApiClientProvider)

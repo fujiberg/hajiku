@@ -77,6 +77,15 @@ class ReviewSessionState {
     this.hasCorrectAnswer = false,
   });
 
+  /// A finished, empty session, used when there are no items to review.
+  const ReviewSessionState.empty()
+    : queue = const [],
+      initialQueue = const [],
+      totalItems = 0,
+      completedItems = 0,
+      feedback = null,
+      hasCorrectAnswer = false;
+
   /// Remaining quizzes, in the order they'll be asked. Quizzes answered
   /// incorrectly are re-queued at a random later position to be retried.
   final List<ReviewQuiz> queue;

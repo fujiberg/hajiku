@@ -30,9 +30,8 @@ class WaniKaniApiClient {
   Future<List<WaniKaniAssignment>> getAssignments({
     required int level,
     List<int>? srsStages,
-  }) async {
-    final assignments = <WaniKaniAssignment>[];
-    Uri? uri = _baseUrl
+  }) {
+    final uri = _baseUrl
         .resolve('assignments')
         .replace(
           queryParameters: {
@@ -40,20 +39,7 @@ class WaniKaniApiClient {
             if (srsStages != null) 'srs_stages': srsStages.join(','),
           },
         );
-
-    while (uri != null) {
-      final json = await _get(uri);
-      assignments.addAll(
-        (json['data'] as List<dynamic>).map(
-          (e) => WaniKaniAssignment.fromJson(e as Map<String, dynamic>),
-        ),
-      );
-
-      final nextUrl = (json['pages'] as Map<String, dynamic>)['next_url'];
-      uri = nextUrl == null ? null : Uri.parse(nextUrl as String);
-    }
-
-    return assignments;
+    return _getAllPages(uri, WaniKaniAssignment.fromJson);
   }
 
   /// Fetches the assignments that currently have a review available,
@@ -180,23 +166,11 @@ class WaniKaniApiClient {
   }
 
   /// Fetches the user's progress through each WaniKani level.
-  Future<List<WaniKaniLevelProgression>> getLevelProgressions() async {
-    final progressions = <WaniKaniLevelProgression>[];
-    Uri? uri = _baseUrl.resolve('level_progressions');
-
-    while (uri != null) {
-      final json = await _get(uri);
-      progressions.addAll(
-        (json['data'] as List<dynamic>).map(
-          (e) => WaniKaniLevelProgression.fromJson(e as Map<String, dynamic>),
-        ),
-      );
-
-      final nextUrl = (json['pages'] as Map<String, dynamic>)['next_url'];
-      uri = nextUrl == null ? null : Uri.parse(nextUrl as String);
-    }
-
-    return progressions;
+  Future<List<WaniKaniLevelProgression>> getLevelProgressions() {
+    return _getAllPages(
+      _baseUrl.resolve('level_progressions'),
+      WaniKaniLevelProgression.fromJson,
+    );
   }
 
   /// Returns the number of assignments with lessons or reviews

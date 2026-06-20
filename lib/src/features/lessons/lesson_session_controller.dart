@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings/settings_controller.dart';
 import '../../core/wanikani/providers.dart';
-import '../review/models/review_session.dart';
+import '../review/review_session_controller.dart';
 import 'models/lesson_session.dart';
 
 /// Drives a single lesson browsing session: picks the first
@@ -23,17 +23,7 @@ class LessonSessionController extends AsyncNotifier<LessonSessionState> {
         .take(settings.lessonsPerSession)
         .toList();
 
-    final subjects = await client.getSubjects(
-      assignments.map((a) => a.subjectId).toList(),
-    );
-    final subjectsById = {for (final subject in subjects) subject.id: subject};
-
-    final items = <ReviewItem>[];
-    for (final assignment in assignments) {
-      final subject = subjectsById[assignment.subjectId];
-      if (subject == null) continue;
-      items.add(ReviewItem(assignmentId: assignment.id, subject: subject));
-    }
+    final items = await fetchReviewItems(client, assignments);
 
     return LessonSessionState(items: items, currentIndex: 0);
   }

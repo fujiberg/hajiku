@@ -10,9 +10,10 @@ WaniKani has no official mobile app. Third-party options all rely on the system 
 
 ## Features
 
+- Built-in 12-key flick kana input — type kana directly during reviews, no system keyboard switching (on by default, toggleable in settings)
+- Romaji-to-kana fallback — when the flick keyboard is disabled, type romaji on the system keyboard and have it converted to kana automatically
 - Review and lesson queue powered by the WaniKani API v2
-- Romaji-to-kana input for reviews — type romaji on the system keyboard, converted to kana automatically
-- Built-in 12-key flick kana input (planned) — no system keyboard switching
+- Home dashboard with level progress, an upcoming-review forecast, and SRS stage distribution
 - Offline queue with local caching (planned)
 - Clean, focused UI optimised for mobile and tablet
 
@@ -31,7 +32,7 @@ iOS and Android. The flick input is intentionally mobile-first.
 
 ```bash
 git clone https://github.com/fujiberg/hajiku.git
-cd hajiku/app
+cd hajiku
 flutter pub get
 flutter run
 ```

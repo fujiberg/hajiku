@@ -17,7 +17,16 @@ void main() {
       return http.Response(
         jsonEncode({
           'object': 'user',
-          'data': {'username': 'taro', 'level': 5},
+          'data': {
+            'username': 'taro',
+            'level': 5,
+            'subscription': {
+              'active': true,
+              'type': 'recurring',
+              'max_level_granted': 60,
+              'period_ends_at': null,
+            },
+          },
         }),
         200,
       );
@@ -74,7 +83,7 @@ void main() {
     final mockClient = MockClient((request) async {
       expect(request.url.path, '/v2/assignments');
       expect(request.url.queryParameters['levels'], '5');
-      expect(request.url.queryParameters['srs_stages'], '0,1,2,3,4');
+      expect(request.url.queryParameters.containsKey('srs_stages'), isFalse);
 
       return http.Response(
         jsonEncode({

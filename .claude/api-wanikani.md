@@ -15,15 +15,15 @@ Notes on how Hajiku talks to the [WaniKani API v2](https://docs.api.wanikani.com
 
 ## Pagination
 
-List endpoints (`assignments`, `subjects`, `level_progressions`) are paginated. `_getAllPages` / the manual
-while-loops follow `pages.next_url` until it's `null`, concatenating `data` from every page. Callers always get the
-full result set — there's no partial-page API in this client.
+List endpoints (`assignments`, `subjects`, `level_progressions`) are paginated. `_getAllPages` follows
+`pages.next_url` until it's `null`, concatenating `data` from every page; every list-returning method delegates to it.
+Callers always get the full result set — there's no partial-page API in this client.
 
 ## Endpoints in use
 
 - `GET /user` → `getUser()` — validates the token and returns username/level (`WaniKaniUser`).
-- `GET /assignments` → `getAssignments({level, srsStages})` — assignments for a given level, defaulting to SRS
-  stages 0-4 (everything below Guru, i.e. still needed to level up).
+- `GET /assignments` → `getAssignments({level, srsStages})` — assignments for a given level across all SRS stages by
+  default; pass `srsStages` to restrict. Used by the home screen's level-progress tiles to compare Guru'd vs. total.
 - `GET /assignments?immediately_available_for_review=true` → `getReviewAssignments()`.
 - `GET /assignments?immediately_available_for_lessons=true` → `getLessonAssignments()`.
 - `GET /assignments?per_page=1&immediately_available_for_lessons=...&immediately_available_for_review=...` →
