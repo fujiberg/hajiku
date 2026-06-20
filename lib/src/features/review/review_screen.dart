@@ -301,8 +301,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
       _controller.clear();
       _romajiFormatter.reset();
       _readingKeyboardSwapped = false;
-      // As in initState, request focus after the field has had a frame to
-      // become enabled again, so the keyboard reliably reopens.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _focusNode.requestFocus();
       });
@@ -331,13 +329,17 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     }
 
     if (feedback.correct) {
-      if (settings?.vocabAudioEnabled ?? true) {
+      final isReading = widget.session.current?.type == ReviewQuizType.reading;
+      if (isReading && (settings?.vocabAudioEnabled ?? true)) {
         final audios = widget.session.current?.item.subject.pronunciationAudios;
         if (audios != null && audios.isNotEmpty) {
-          final audio = audios.firstWhere(
-            (a) => a.contentType == 'audio/mpeg',
-            orElse: () => audios.first,
-          );
+          final pool = audios
+              .where((a) => a.contentType == 'audio/mpeg')
+              .toList();
+          final audio =
+              (pool.isNotEmpty ? pool : audios)[Random().nextInt(
+                pool.isNotEmpty ? pool.length : audios.length,
+              )];
           _audioPlayer.play(UrlSource(audio.url));
         }
       }
@@ -400,7 +402,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     final useFlickKeyboard =
         quiz.type == ReviewQuizType.reading &&
         (settings?.flickKeyboardEnabled ?? true) != _readingKeyboardSwapped &&
-        feedback == null;
+        (feedback == null || (feedback.correct && autoAdvanceEnabled));
 
     if (useFlickKeyboard != _flickKeyboardVisible) {
       _flickKeyboardVisible = useFlickKeyboard;
@@ -502,7 +504,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                         child: TextField(
                           controller: _controller,
                           focusNode: _focusNode,
-                          enabled: feedback == null,
+                          enabled: feedback?.correct != false,
                           readOnly: useFlickKeyboard,
                           showCursor: useFlickKeyboard ? true : null,
                           keyboardType: useFlickKeyboard
@@ -524,12 +526,9 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                           onSubmitted: keyboardSubmitEnabled
                               ? (_) => _submit()
                               : null,
-                          // Without this, the default behavior for a
-                          // non-multiline field is to close the keyboard on
-                          // Enter even when onSubmitted is null.
-                          onEditingComplete: keyboardSubmitEnabled
-                              ? null
-                              : () {},
+                          // Prevent the default unfocus-on-submit behavior so
+                          // the keyboard stays open between questions.
+                          onEditingComplete: () {},
                           decoration: InputDecoration(
                             border: const UnderlineInputBorder(
                               borderSide: BorderSide(color: Colors.grey),
@@ -577,13 +576,14 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                   ReviewAnswerFeedback(correct: true) => Colors.green,
                   ReviewAnswerFeedback(correct: false) => Colors.red,
                 },
-                disabledBackgroundColor:
-                    feedback?.correct ?? false ? Colors.green : null,
-                disabledForegroundColor:
-                    feedback?.correct ?? false ? Colors.white : null,
+                disabledBackgroundColor: feedback?.correct ?? false
+                    ? Colors.green
+                    : null,
+                disabledForegroundColor: feedback?.correct ?? false
+                    ? Colors.white
+                    : null,
               ),
-              onPressed:
-                  (feedback?.correct ?? false) && autoAdvanceEnabled
+              onPressed: (feedback?.correct ?? false) && autoAdvanceEnabled
                   ? null
                   : _submit,
               child: Text(switch (feedback) {
