@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'flick_kana_layout.dart';
 import 'flick_key.dart';
@@ -73,6 +74,10 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
   FlickDirection? _activeDirection;
   bool _activePastThreshold = false;
 
+  // Key on the grid Column so the overlay builder can resolve global position.
+  final _gridKey = GlobalKey();
+  final _overlayController = OverlayPortalController();
+
   @override
   void initState() {
     super.initState();
@@ -134,6 +139,7 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
     FlickDirection? direction, {
     required bool isFlick,
   }) {
+    HapticFeedback.lightImpact();
     if (isFlick) {
       _insert(_applyMode(data[direction]!));
       _resetCycle();
@@ -255,6 +261,7 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
   }
 
   void _handleControlTap(FlickGridCell cell) {
+    HapticFeedback.lightImpact();
     switch (cell) {
       case FlickModifierCell():
         _applyModifier();
@@ -290,10 +297,12 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
         _activeCell = (row, col);
         _activeDirection = direction;
         _activePastThreshold = pastThreshold;
+        _overlayController.show();
       } else if (_activeCell == (row, col)) {
         _activeCell = null;
         _activeDirection = null;
         _activePastThreshold = false;
+        _overlayController.hide();
       }
     });
   }
@@ -361,28 +370,77 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
     );
   }
 
+  Widget _buildOverlayPopup(BuildContext context) {
+    final activeCell = _activeCell;
+    if (activeCell == null) return const SizedBox.shrink();
+
+    final (row, col) = activeCell;
+    final cell = FlickKanaLayout.grid[row][col];
+    if (cell is! FlickKanaCell) return const SizedBox.shrink();
+
+    final renderBox =
+        _gridKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return const SizedBox.shrink();
+
+    final gridOffset = renderBox.localToGlobal(Offset.zero);
+    final gridSize = renderBox.size;
+    final cellWidth = gridSize.width / _columns;
+    final cellHeight = gridSize.height / _rows;
+
+    final minCellDimension = math.min(cellWidth, cellHeight);
+    // Same footprint whether showing the candidate grid or the single
+    // live-preview badge, so the popup doesn't change size mid-drag.
+    final popupSize = minCellDimension * 1.2;
+
+    const gap = 6.0;
+    final cellCenterX = (col + 0.5) * cellWidth;
+    final cellTop = row * cellHeight;
+
+    final maxLeft = math.max(0.0, gridSize.width - popupSize);
+    final left = (cellCenterX - popupSize / 2).clamp(0.0, maxLeft);
+
+    // Position above the key. Top-row keys may go above the keyboard's own
+    // bounds — that's fine since we're now in the overlay.
+    final maxTop = math.max(0.0, gridSize.height - popupSize);
+    final top = math.min(cellTop - gap - popupSize, maxTop);
+
+    return Positioned(
+      left: gridOffset.dx + left,
+      top: gridOffset.dy + top,
+      child: IgnorePointer(
+        child: _FlickPreviewPopup(
+          data: cell.data,
+          activeDirection: _activeDirection,
+          pastThreshold: _activePastThreshold,
+          katakana: _katakana,
+          size: popupSize,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Leave room below the keyboard so it doesn't sit flush against the
     // device's home indicator / nav bar.
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
-    return Container(
-      // A dedicated, more tinted background - like a system keyboard's
-      // tray - so the (lighter) keys read as raised above it.
-      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-      child: SizedBox(
-        height: widget.height + bottomInset,
-        child: Column(
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cellWidth = constraints.maxWidth / _columns;
-                  final cellHeight = constraints.maxHeight / _rows;
-
-                  final children = <Widget>[
-                    Column(
+    return OverlayPortal(
+      controller: _overlayController,
+      overlayChildBuilder: _buildOverlayPopup,
+      child: Container(
+        // A dedicated, more tinted background - like a system keyboard's
+        // tray - so the (lighter) keys read as raised above it.
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        child: SizedBox(
+          height: widget.height + bottomInset,
+          child: Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Column(
+                      key: _gridKey,
                       children: [
                         for (var row = 0; row < _rows; row++)
                           Expanded(
@@ -394,67 +452,13 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
                             ),
                           ),
                       ],
-                    ),
-                  ];
-
-                  final activeCell = _activeCell;
-                  if (activeCell != null) {
-                    final (row, col) = activeCell;
-                    final cell = FlickKanaLayout.grid[row][col];
-                    if (cell is FlickKanaCell) {
-                      final minCellDimension = math.min(cellWidth, cellHeight);
-                      // Same footprint whether showing the candidate grid or
-                      // the single live-preview badge, so the popup doesn't
-                      // change size when the touch starts moving.
-                      final popupSize = minCellDimension * 1.2;
-
-                      const gap = 6.0;
-                      final cellCenterX = (col + 0.5) * cellWidth;
-                      final cellTop = row * cellHeight;
-
-                      final maxLeft = math.max(
-                        0.0,
-                        constraints.maxWidth - popupSize,
-                      );
-                      final left = (cellCenterX - popupSize / 2).clamp(
-                        0.0,
-                        maxLeft,
-                      );
-
-                      // Position above the key so the popup isn't covered by
-                      // the finger. Allowed to overflow above the keyboard's
-                      // own bounds (e.g. for top-row keys); only clamp the
-                      // bottom so it never overlaps the row below the key.
-                      final maxTop = math.max(
-                        0.0,
-                        constraints.maxHeight - popupSize,
-                      );
-                      final top = math.min(cellTop - gap - popupSize, maxTop);
-
-                      children.add(
-                        Positioned(
-                          left: left,
-                          top: top,
-                          child: IgnorePointer(
-                            child: _FlickPreviewPopup(
-                              data: cell.data,
-                              activeDirection: _activeDirection,
-                              pastThreshold: _activePastThreshold,
-                              katakana: _katakana,
-                              size: popupSize,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                  }
-
-                  return Stack(clipBehavior: Clip.none, children: children);
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-            SizedBox(height: bottomInset),
-          ],
+              SizedBox(height: bottomInset),
+            ],
+          ),
         ),
       ),
     );
