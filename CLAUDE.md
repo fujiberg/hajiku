@@ -15,18 +15,17 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core diff
 ## Repo structure
 
 - `.flutter-version` — pinned Flutter SDK version
-- `app/` — Flutter project root; run all `flutter`/`dart` commands from here
-  - `lib/main.dart` — entry point
-  - `lib/src/app.dart` — root `HajikuApp` widget (theme, routing)
-  - `lib/src/core/` — shared utilities, theming, constants
-    - `auth/` — auth controller (API token state)
-    - `storage/` — secure token storage
-    - `romaji/` — romaji-to-kana conversion and input formatter
-    - `settings/` — app settings (persisted via `shared_preferences`)
-    - `wanikani/` — WaniKani API v2 client and models
-    - `widgets/` — shared widgets (e.g. `TermInfoPanel`)
-  - `lib/src/features/` — feature modules, one directory per feature (added as built)
-  - `test/` — widget and unit tests
+- `lib/main.dart` — entry point
+- `lib/src/app.dart` — root `HajikuApp` widget (theme, routing)
+- `lib/src/core/` — shared utilities, theming, constants
+  - `auth/` — auth controller (API token state)
+  - `storage/` — secure token storage
+  - `romaji/` — romaji-to-kana conversion and input formatter
+  - `settings/` — app settings (persisted via `shared_preferences`)
+  - `wanikani/` — WaniKani API v2 client and models
+  - `widgets/` — shared widgets (e.g. `TermInfoPanel`)
+- `lib/src/features/` — feature modules, one directory per feature (added as built)
+- `test/` — widget and unit tests
 
 ## Hard rules
 

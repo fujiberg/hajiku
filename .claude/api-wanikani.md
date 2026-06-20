@@ -1,7 +1,7 @@
 # WaniKani API v2 notes
 
 Notes on how Hajiku talks to the [WaniKani API v2](https://docs.api.wanikani.com). The client lives at
-`app/lib/src/core/wanikani/wanikani_api_client.dart`.
+`lib/src/core/wanikani/wanikani_api_client.dart`.
 
 ## Auth and headers
 
