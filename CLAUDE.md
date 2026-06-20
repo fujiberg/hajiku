@@ -40,3 +40,4 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core diff
 
 - `.claude/api-wanikani.md` — WaniKani API v2 notes
 - `.claude/widget-flick-input.md` — flick kana keyboard design, gestures, and constraints
+- `.claude/answer-validation.md` — answer validation rules for reading and meaning quizzes

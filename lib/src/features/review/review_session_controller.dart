@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/romaji/romaji_converter.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/providers.dart';
@@ -87,22 +88,43 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     );
   }
 
-  /// Checks [input] against the current quiz and records the result as
-  /// feedback. Does not advance the queue — call [next] once the user has
-  /// seen the result.
-  void submitAnswer(String input) {
+  /// Validates [input] and, if valid, checks it against the current quiz and
+  /// records the result as feedback. Does not advance the queue — call [next]
+  /// once the user has seen the result.
+  SubmitResult submitAnswer(String input) {
     final session = state.value;
-    if (session == null || session.feedback != null) return;
+    if (session == null || session.feedback != null) return SubmitResult.invalidInput;
 
     final quiz = session.current;
-    if (quiz == null) return;
+    if (quiz == null) return SubmitResult.invalidInput;
 
-    final normalized = input.trim();
-    final correct = quiz.type == ReviewQuizType.meaning
-        ? quiz.item.subject.acceptedMeanings
-              .map((meaning) => meaning.toLowerCase())
-              .contains(normalized.toLowerCase())
-        : quiz.item.subject.acceptedReadings.contains(normalized);
+    final bool correct;
+    if (quiz.type == ReviewQuizType.reading) {
+      final normalized = _normalizeReading(input);
+      if (normalized.isEmpty || !_isAllKana(normalized)) {
+        return SubmitResult.invalidInput;
+      }
+      correct = quiz.item.subject.acceptedReadings.contains(normalized);
+    } else {
+      final normalized = _normalizeMeaning(input);
+      if (normalized.isEmpty || _containsKana(normalized)) {
+        return SubmitResult.invalidInput;
+      }
+      correct = quiz.item.subject.acceptedMeanings.any(
+        (meaning) => _meaningMatches(normalized, meaning),
+      );
+      // If incorrect, check whether the input is romaji for an accepted reading.
+      // If so, the user typed a reading instead of a meaning — treat as invalid
+      // rather than wrong. This check must come after the correctness check so
+      // that meanings that happen to romanise to a reading (e.g. "sensei") are
+      // still accepted.
+      if (!correct) {
+        final asKana = RomajiConverter.convert(normalized, isFinal: true).kana;
+        if (quiz.item.subject.acceptedReadings.contains(asKana)) {
+          return SubmitResult.invalidInput;
+        }
+      }
+    }
 
     if (correct) {
       quiz.item.completedTypes.add(quiz.type);
@@ -118,6 +140,8 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         hasCorrectAnswer: session.hasCorrectAnswer || correct,
       ),
     );
+
+    return correct ? SubmitResult.correct : SubmitResult.incorrect;
   }
 
   /// Advances past the current quiz's feedback. Quizzes answered
@@ -159,6 +183,59 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         // already advanced and shouldn't be blocked by a failed sync.
       }
     }
+  }
+
+  /// Strips all whitespace from a reading input.
+  String _normalizeReading(String input) => input.replaceAll(RegExp(r'\s'), '');
+
+  /// Returns true if every character in [input] is hiragana or katakana.
+  bool _isAllKana(String input) => input.runes.every((r) =>
+      (r >= 0x3040 && r <= 0x309F) || // hiragana
+      (r >= 0x30A0 && r <= 0x30FF)); // katakana
+
+  /// Returns true if [input] contains any hiragana or katakana character.
+  bool _containsKana(String input) => input.runes.any((r) =>
+      (r >= 0x3040 && r <= 0x309F) ||
+      (r >= 0x30A0 && r <= 0x30FF));
+
+  /// Strips punctuation and collapses internal whitespace for a meaning input.
+  String _normalizeMeaning(String input) => input
+      .replaceAll(RegExp(r"[^\w\s]"), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  /// Returns true if [answer] is close enough to [accepted] to count as
+  /// correct. Allowed Levenshtein distance scales with answer length:
+  ///   ≤ 3 chars → exact, 4–7 chars → 1, 8+ chars → 2.
+  /// Answers containing digits are always matched exactly (e.g. "10000" must
+  /// not be accepted for "100000").
+  bool _meaningMatches(String answer, String accepted) {
+    final a = answer.toLowerCase();
+    final b = accepted.toLowerCase();
+    if (a == b) return true;
+    if (accepted.contains(RegExp(r'\d'))) return false;
+    final threshold = a.length <= 3 ? 0 : a.length <= 7 ? 1 : 2;
+    if (threshold == 0) return false;
+    return _levenshtein(a, b) <= threshold;
+  }
+
+  int _levenshtein(String a, String b) {
+    if (a == b) return 0;
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+    final row = List<int>.generate(b.length + 1, (i) => i);
+    for (var i = 1; i <= a.length; i++) {
+      var prev = row[0];
+      row[0] = i;
+      for (var j = 1; j <= b.length; j++) {
+        final temp = row[j];
+        row[j] = a[i - 1] == b[j - 1]
+            ? prev
+            : 1 + [prev, row[j], row[j - 1]].reduce((x, y) => x < y ? x : y);
+        prev = temp;
+      }
+    }
+    return row[b.length];
   }
 
   Future<void> _submitReview(ReviewItem item) async {

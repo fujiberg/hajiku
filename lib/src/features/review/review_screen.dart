@@ -195,15 +195,6 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// Reasons a typed answer can't be submitted, distinct from it simply being
-/// incorrect.
-enum _InputValidationError { empty }
-
-/// Returns why [input] can't be submitted, or `null` if it's valid.
-_InputValidationError? _validateInput(String input) {
-  if (input.trim().isEmpty) return _InputValidationError.empty;
-  return null;
-}
 
 /// Shows the current quiz and its answer input.
 class _QuizBody extends ConsumerStatefulWidget {
@@ -301,10 +292,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
   void didUpdateWidget(_QuizBody oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final feedback = widget.session.feedback;
-    if (oldWidget.session.feedback == null && feedback != null) {
-      _onFeedback(feedback);
-    } else if (oldWidget.session.feedback != null && feedback == null) {
+    if (oldWidget.session.feedback != null && widget.session.feedback == null) {
       _controller.clear();
       _romajiFormatter.reset();
       _readingKeyboardSwapped = false;
@@ -325,42 +313,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     super.dispose();
   }
 
-  void _onFeedback(ReviewAnswerFeedback feedback) {
-    final settings = ref.read(settingsControllerProvider).value;
-    if (settings?.hapticFeedbackEnabled ?? true) {
-      if (feedback.correct) {
-        HapticFeedback.lightImpact();
-      } else {
-        HapticFeedback.heavyImpact();
-      }
-    }
-
-    if (feedback.correct) {
-      final isReading = widget.session.current?.type == ReviewQuizType.reading;
-      if (isReading && (settings?.vocabAudioEnabled ?? true)) {
-        final audios = widget.session.current?.item.subject.pronunciationAudios;
-        if (audios != null && audios.isNotEmpty) {
-          final pool = audios
-              .where((a) => a.contentType == 'audio/mpeg')
-              .toList();
-          final audio =
-              (pool.isNotEmpty ? pool : audios)[Random().nextInt(
-                pool.isNotEmpty ? pool.length : audios.length,
-              )];
-          _audioPlayer.play(UrlSource(audio.url));
-        }
-      }
-
-      if (settings?.autoAdvanceEnabled ?? false) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            ref.read(reviewSessionControllerProvider.notifier).next();
-          }
-        });
-      }
-    }
-  }
-
   void _submit() {
     final controller = ref.read(reviewSessionControllerProvider.notifier);
     if (widget.session.feedback == null) {
@@ -372,26 +324,50 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
       final answer = isReading && !useFlickKeyboard
           ? _romajiFormatter.finalize()
           : _controller.text;
-      if (_validateInput(answer) != null) {
-        _onInvalidInput();
-        return;
-      }
       if (answer != _controller.text) {
         _controller.text = answer;
       }
-      controller.submitAnswer(answer);
+      final result = controller.submitAnswer(answer);
+      switch (result) {
+        case SubmitResult.invalidInput:
+          _shakeController.forward(from: 0);
+          if (settings?.invalidInputHapticFeedbackEnabled ?? true) {
+            HapticFeedback.heavyImpact();
+          }
+        case SubmitResult.correct:
+          if (settings?.hapticFeedbackEnabled ?? true) {
+            HapticFeedback.lightImpact();
+          }
+          if (isReading && (settings?.vocabAudioEnabled ?? true)) {
+            final audios =
+                widget.session.current?.item.subject.pronunciationAudios;
+            if (audios != null && audios.isNotEmpty) {
+              final pool =
+                  audios.where((a) => a.contentType == 'audio/mpeg').toList();
+              final audio =
+                  (pool.isNotEmpty ? pool : audios)[Random().nextInt(
+                    pool.isNotEmpty ? pool.length : audios.length,
+                  )];
+              _audioPlayer.play(UrlSource(audio.url));
+            }
+          }
+          if (settings?.autoAdvanceEnabled ?? false) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                ref.read(reviewSessionControllerProvider.notifier).next();
+              }
+            });
+          }
+        case SubmitResult.incorrect:
+          if (settings?.hapticFeedbackEnabled ?? true) {
+            HapticFeedback.heavyImpact();
+          }
+      }
     } else {
       controller.next();
     }
   }
 
-  void _onInvalidInput() {
-    _shakeController.forward(from: 0);
-    final settings = ref.read(settingsControllerProvider).value;
-    if (settings?.invalidInputHapticFeedbackEnabled ?? true) {
-      HapticFeedback.heavyImpact();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

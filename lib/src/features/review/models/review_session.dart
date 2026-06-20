@@ -58,6 +58,18 @@ class ReviewQuiz {
   final ReviewQuizType type;
 }
 
+/// The outcome of calling [ReviewSessionController.submitAnswer].
+enum SubmitResult {
+  /// The input was structurally invalid (e.g. empty) and was not processed.
+  invalidInput,
+
+  /// The input was processed and the answer was correct.
+  correct,
+
+  /// The input was processed and the answer was incorrect.
+  incorrect,
+}
+
 /// Feedback shown for the current quiz after the user submits an answer,
 /// before they move on to the next one.
 class ReviewAnswerFeedback {
