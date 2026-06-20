@@ -399,7 +399,8 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     final autoAdvanceEnabled = settings?.autoAdvanceEnabled ?? false;
     final useFlickKeyboard =
         quiz.type == ReviewQuizType.reading &&
-        (settings?.flickKeyboardEnabled ?? true) != _readingKeyboardSwapped;
+        (settings?.flickKeyboardEnabled ?? true) != _readingKeyboardSwapped &&
+        feedback == null;
 
     if (useFlickKeyboard != _flickKeyboardVisible) {
       _flickKeyboardVisible = useFlickKeyboard;
@@ -415,9 +416,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
         _ReviewProgressBar(session: session, backgroundColor: color),
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.paddingOf(context).bottom,
-            ),
             child: Column(
               children: [
                 Container(
@@ -545,38 +543,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: switch (feedback) {
-                              null => color,
-                              ReviewAnswerFeedback(correct: true) =>
-                                Colors.green,
-                              ReviewAnswerFeedback(correct: false) =>
-                                Colors.red,
-                            },
-                            disabledBackgroundColor: feedback?.correct ?? false
-                                ? Colors.green
-                                : null,
-                            disabledForegroundColor: feedback?.correct ?? false
-                                ? Colors.white
-                                : null,
-                          ),
-                          onPressed:
-                              (feedback?.correct ?? false) && autoAdvanceEnabled
-                              ? null
-                              : _submit,
-                          child: Text(switch (feedback) {
-                            null => 'Submit',
-                            ReviewAnswerFeedback(correct: true) =>
-                              autoAdvanceEnabled ? 'Correct' : 'Correct - Next',
-                            ReviewAnswerFeedback(correct: false) =>
-                              'Incorrect - Next',
-                          }),
-                        ),
-                      ),
                       if (feedback != null && !feedback.correct) ...[
                         const SizedBox(height: 16),
                         TermInfoPanel(
@@ -590,6 +556,42 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 8,
+            bottom: useFlickKeyboard
+                ? 8
+                : 8 + MediaQuery.paddingOf(context).bottom,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: switch (feedback) {
+                  null => color,
+                  ReviewAnswerFeedback(correct: true) => Colors.green,
+                  ReviewAnswerFeedback(correct: false) => Colors.red,
+                },
+                disabledBackgroundColor:
+                    feedback?.correct ?? false ? Colors.green : null,
+                disabledForegroundColor:
+                    feedback?.correct ?? false ? Colors.white : null,
+              ),
+              onPressed:
+                  (feedback?.correct ?? false) && autoAdvanceEnabled
+                  ? null
+                  : _submit,
+              child: Text(switch (feedback) {
+                null => 'Submit',
+                ReviewAnswerFeedback(correct: true) =>
+                  autoAdvanceEnabled ? 'Correct' : 'Correct - Next',
+                ReviewAnswerFeedback(correct: false) => 'Incorrect - Next',
+              }),
             ),
           ),
         ),
