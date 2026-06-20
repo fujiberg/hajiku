@@ -44,3 +44,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Disclaimer
+
+Hajiku is an unofficial third-party app and is not affiliated with, endorsed by, or in any way connected to [Tofugu LLC](https://www.tofugu.com) or [WaniKani](https://www.wanikani.com). All educational content (kanji, vocabulary, radicals, and mnemonics) is copyright © Tofugu LLC and is accessed via the WaniKani API under their [terms of service](https://www.wanikani.com/terms).

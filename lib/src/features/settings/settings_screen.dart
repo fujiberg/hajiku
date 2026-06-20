@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/settings/models/app_settings.dart';
@@ -126,17 +127,6 @@ class _SettingsList extends ConsumerWidget {
           onChanged: controller.setKeyboardSubmitEnabled,
         ),
         const Divider(),
-        const _SectionHeader('Developer'),
-        SwitchListTile(
-          title: const Text('Submit review results to WaniKani'),
-          subtitle: const Text(
-            'Turn off to test the review flow with sample data without '
-            'affecting your WaniKani SRS progress',
-          ),
-          value: settings.submitReviewResultsEnabled,
-          onChanged: controller.setSubmitReviewResultsEnabled,
-        ),
-        const Divider(),
         const _SectionHeader('Account'),
         ListTile(
           title: const Text('Change API token'),
@@ -149,6 +139,79 @@ class _SettingsList extends ConsumerWidget {
           title: const Text('Log out'),
           leading: const Icon(Icons.logout),
           onTap: () => ref.read(authControllerProvider.notifier).disconnect(),
+        ),
+        const Divider(),
+        const _SectionHeader('About'),
+        ListTile(
+          titleAlignment: ListTileTitleAlignment.titleHeight,
+          title: const Text('Educational content'),
+          subtitle: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'wanikani.com',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              ),
+              const Text('copyright © Tofugu LLC'),
+              const Text('Hajiku is not affiliated with Tofugu'),
+            ],
+          ),
+          leading: const Icon(Icons.school_outlined),
+          trailing: const Icon(Icons.open_in_new, size: 16),
+          onTap: () => launchUrl(
+            Uri.parse('https://www.wanikani.com'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+        ListTile(
+          titleAlignment: ListTileTitleAlignment.titleHeight,
+          title: const Text('Hajiku is open source'),
+          subtitle: Text(
+            'github.com/fujiberg/hajiku',
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          ),
+          leading: const Icon(Icons.code),
+          trailing: const Icon(Icons.open_in_new, size: 16),
+          onTap: () => launchUrl(
+            Uri.parse('https://github.com/fujiberg/hajiku'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+        ListTile(
+          titleAlignment: ListTileTitleAlignment.titleHeight,
+          title: const Text('Feedback & issues'),
+          subtitle: Text(
+            'github.com/fujiberg/hajiku/issues',
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          ),
+          leading: const Icon(Icons.bug_report_outlined),
+          trailing: const Icon(Icons.open_in_new, size: 16),
+          onTap: () => launchUrl(
+            Uri.parse('https://github.com/fujiberg/hajiku/issues'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+        ListTile(
+          title: const Text('Open-source licenses'),
+          leading: const Icon(Icons.description_outlined),
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: 'Hajiku',
+            applicationLegalese: '© 2026 Fujiberg. MIT License.',
+          ),
+        ),
+        const Divider(),
+        const _SectionHeader('Developer'),
+        SwitchListTile(
+          title: const Text('Dry run mode'),
+          subtitle: const Text(
+            'Disable submission of review results to WaniKani — use this to '
+            'test the review flow without affecting your SRS progress',
+          ),
+          value: !settings.submitReviewResultsEnabled,
+          onChanged: (value) =>
+              controller.setSubmitReviewResultsEnabled(!value),
         ),
       ],
     );

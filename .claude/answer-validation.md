@@ -23,8 +23,8 @@ Answer validation lives entirely in `ReviewSessionController.submitAnswer` (and 
 
 ## UI reactions (`_submit` in `_QuizBody`)
 
-| Result | Reaction |
-|---|---|
-| `invalidInput` | Shake animation + heavy haptic (`invalidInputHapticFeedbackEnabled`) |
-| `correct` | Light haptic (`hapticFeedbackEnabled`) + audio playback for reading quizzes + auto-advance if enabled |
-| `incorrect` | Heavy haptic (`hapticFeedbackEnabled`) |
+| Result         | Reaction                                                                                              |
+| -------------- | ----------------------------------------------------------------------------------------------------- |
+| `invalidInput` | Shake animation + heavy haptic (`invalidInputHapticFeedbackEnabled`)                                  |
+| `correct`      | Light haptic (`hapticFeedbackEnabled`) + audio playback for reading quizzes + auto-advance if enabled |
+| `incorrect`    | Heavy haptic (`hapticFeedbackEnabled`)                                                                |
