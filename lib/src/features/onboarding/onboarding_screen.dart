@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/wanikani/wanikani_api_client.dart';
@@ -69,9 +70,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'Enter your WaniKani API token. You can generate one at '
-              'wanikani.com/settings/personal_access_tokens.',
+              'Hajiku requires a WaniKani account. A free account gives access '
+              'to levels 1–3; a subscription unlocks all 60 levels.',
             ),
+            const SizedBox(height: 4),
+            _LinkButton(
+              label: 'Sign up at wanikani.com',
+              url: 'https://www.wanikani.com',
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Enter your WaniKani API token below. You can generate one in '
+              'your WaniKani personal access token settings.',
+            ),
+            const SizedBox(height: 4),
+            _LinkButton(
+              label: 'Open token settings',
+              url: 'https://www.wanikani.com/settings/personal_access_tokens',
+            ),
+            const SizedBox(height: 8),
+            const Text('Enable these permissions when creating your token:'),
+            const SizedBox(height: 4),
+            const _ScopeChips(),
             const SizedBox(height: 16),
             TextField(
               controller: _tokenController,
@@ -103,6 +123,59 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   : const Text('Connect'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScopeChips extends StatelessWidget {
+  const _ScopeChips();
+
+  static const _scopes = ['assignments:start', 'reviews:create'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      children: [
+        for (final scope in _scopes)
+          Chip(
+            label: Text(
+              scope,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontFamily: 'monospace',
+              ),
+            ),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+          ),
+      ],
+    );
+  }
+}
+
+class _LinkButton extends StatelessWidget {
+  const _LinkButton({required this.label, required this.url});
+
+  final String label;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: () => launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        ),
+        icon: const Icon(Icons.open_in_new, size: 14),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
         ),
       ),
     );
