@@ -118,6 +118,14 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         )) {
           return SubmitResult.invalidInput;
         }
+        final characters = quiz.item.subject.characters;
+        if (characters != null) {
+          final runs = _kanaRuns(characters);
+          final answerHiragana = _toHiragana(normalized);
+          if (runs.isNotEmpty && !runs.every(answerHiragana.contains)) {
+            return SubmitResult.invalidInput;
+          }
+        }
       }
     } else {
       final normalized = _normalizeMeaning(input);
@@ -197,6 +205,33 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         // already advanced and shouldn't be blocked by a failed sync.
       }
     }
+  }
+
+  /// Converts katakana code points to their hiragana equivalents (offset 0x60).
+  String _toHiragana(String s) => String.fromCharCodes(
+    s.runes.map((r) => (r >= 0x30A1 && r <= 0x30F6) ? r - 0x60 : r),
+  );
+
+  /// Returns each maximal run of kana characters in [s], converted to
+  /// hiragana. Used to check that okurigana visible in the subject's
+  /// characters are also present in the user's answer.
+  List<String> _kanaRuns(String s) {
+    final runs = <String>[];
+    final buf = StringBuffer();
+    for (final r in s.runes) {
+      final isKana =
+          (r >= 0x3041 && r <= 0x3096) || (r >= 0x30A1 && r <= 0x30F6);
+      if (isKana) {
+        buf.writeCharCode((r >= 0x30A1 && r <= 0x30F6) ? r - 0x60 : r);
+      } else {
+        if (buf.isNotEmpty) {
+          runs.add(buf.toString());
+          buf.clear();
+        }
+      }
+    }
+    if (buf.isNotEmpty) runs.add(buf.toString());
+    return runs;
   }
 
   static const _smallToLarge = {
