@@ -9,6 +9,7 @@ import '../connectivity/connectivity_service.dart';
 import '../settings/models/app_settings.dart';
 import '../wanikani/http_cache_store.dart';
 import '../wanikani/models/wanikani_assignment.dart';
+import '../wanikani/models/wanikani_study_material.dart';
 import '../wanikani/models/wanikani_subject.dart';
 import '../wanikani/wanikani_api_client.dart';
 
@@ -101,6 +102,17 @@ class ResourceService {
   /// Marks a lesson's assignment as started on WaniKani.
   Future<void> startAssignment(int assignmentId) =>
       _client.startAssignment(assignmentId);
+
+  /// Fetches study materials (user-created synonyms) for [subjectIds]. Study
+  /// materials are mutable user data — not cached on disk; always fetched fresh.
+  /// Returns a map from subject id to its material; absent entries mean the user
+  /// has no custom data for that subject.
+  Future<Map<int, WaniKaniStudyMaterial>> studyMaterialsFor(
+    List<int> subjectIds,
+  ) async {
+    final materials = await _client.getStudyMaterials(subjectIds);
+    return {for (final m in materials) m.subjectId: m};
+  }
 
   /// Returns the subjects for [ids], served from the on-device cache.
   ///

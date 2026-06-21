@@ -7,6 +7,7 @@ import '../cache/cache_stats.dart';
 import 'http_cache_store.dart';
 import 'models/wanikani_assignment.dart';
 import 'models/wanikani_level_progression.dart';
+import 'models/wanikani_study_material.dart';
 import 'models/wanikani_subject.dart';
 import 'models/wanikani_user.dart';
 import 'wanikani_exception.dart';
@@ -192,6 +193,19 @@ class WaniKaniApiClient {
           'with status ${response.statusCode}.',
         );
     }
+  }
+
+  /// Fetches study materials (user-created synonyms and notes) for the given
+  /// [subjectIds]. Returns only entries that exist — subjects with no custom
+  /// data are simply absent from the result.
+  Future<List<WaniKaniStudyMaterial>> getStudyMaterials(
+    List<int> subjectIds,
+  ) {
+    if (subjectIds.isEmpty) return Future.value(const []);
+    final uri = _baseUrl.resolve('study_materials').replace(
+      queryParameters: {'subject_ids': subjectIds.join(',')},
+    );
+    return _getAllPages(uri, WaniKaniStudyMaterial.fromJson);
   }
 
   /// Fetches the user's progress through each WaniKani level.
