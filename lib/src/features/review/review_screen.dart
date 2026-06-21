@@ -58,6 +58,17 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   /// re-fetch. Guards against re-invalidating on every rebuild.
   bool _levelUpCheckTriggered = false;
 
+  /// Shared audio player kept alive at screen scope so that a clip triggered
+  /// on the last quiz is not cut off when Flutter swaps [_QuizBody] for
+  /// [ReviewSummary].
+  final _audioPlayer = AudioPlayer();
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(reviewSessionControllerProvider);
@@ -114,7 +125,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 priorLevel: _levelAtStart,
               );
             }
-            return _QuizBody(session: session);
+            return _QuizBody(session: session, audioPlayer: _audioPlayer);
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) =>
@@ -186,9 +197,10 @@ class _EmptyState extends StatelessWidget {
 
 /// Shows the current quiz and its answer input.
 class _QuizBody extends ConsumerStatefulWidget {
-  const _QuizBody({required this.session});
+  const _QuizBody({required this.session, required this.audioPlayer});
 
   final ReviewSessionState session;
+  final AudioPlayer audioPlayer;
 
   @override
   ConsumerState<_QuizBody> createState() => _QuizBodyState();
@@ -199,7 +211,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   final _romajiFormatter = RomajiKanaInputFormatter();
-  final _audioPlayer = AudioPlayer();
   late final _shakeController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 400),
@@ -297,7 +308,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     _focusNode.dispose();
     _shakeController.dispose();
     _flickKeyboardAnimController.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -365,7 +375,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
         .read(resourceServiceProvider)
         .resolveAudio(audio, userInitiated: false);
     if (resource != null && mounted) {
-      await _audioPlayer.play(resource.toSource());
+      await widget.audioPlayer.play(resource.toSource());
     }
   }
 
