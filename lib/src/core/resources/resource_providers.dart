@@ -5,6 +5,7 @@ import '../cache/audio_cache.dart';
 import '../cache/cache_paths.dart';
 import '../cache/cache_providers.dart';
 import '../cache/subject_cache.dart';
+import '../cache/svg_cache.dart';
 import '../connectivity/connectivity_service.dart';
 import '../settings/settings_controller.dart';
 import '../wanikani/providers.dart';
@@ -16,6 +17,10 @@ final subjectCacheProvider = Provider<SubjectCache>(
 
 final audioCacheProvider = Provider<AudioCache>(
   (ref) => AudioCache(directory: ref.watch(cacheDirectoryProvider)),
+);
+
+final svgCacheProvider = Provider<SvgCache>(
+  (ref) => SvgCache(directory: ref.watch(cacheDirectoryProvider)),
 );
 
 final connectivityServiceProvider = Provider<ConnectivityService>(
@@ -39,6 +44,7 @@ final resourceServiceProvider = Provider<ResourceService>((ref) {
     client: ref.watch(wanikaniApiClientProvider),
     subjectCache: ref.watch(subjectCacheProvider),
     audioCache: ref.watch(audioCacheProvider),
+    svgCache: ref.watch(svgCacheProvider),
     connectivity: ref.watch(connectivityServiceProvider),
     httpCacheStore: ref.watch(httpCacheStoreProvider),
     statsRecorder: ref.watch(cacheStatsRecorderProvider),

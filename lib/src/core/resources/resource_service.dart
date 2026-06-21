@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import '../cache/audio_cache.dart';
 import '../cache/cache_stats.dart';
 import '../cache/subject_cache.dart';
+import '../cache/svg_cache.dart';
 import '../connectivity/connectivity_service.dart';
 import '../settings/models/app_settings.dart';
 import '../wanikani/http_cache_store.dart';
@@ -58,6 +60,7 @@ class ResourceService {
     required this._client,
     required this._subjectCache,
     required this._audioCache,
+    required this._svgCache,
     required this._connectivity,
     required this._httpCacheStore,
     required this._statsRecorder,
@@ -68,6 +71,7 @@ class ResourceService {
   final WaniKaniApiClient _client;
   final SubjectCache _subjectCache;
   final AudioCache _audioCache;
+  final SvgCache _svgCache;
   final ConnectivityService _connectivity;
   final HttpCacheStore _httpCacheStore;
   final CacheStatsRecorder _statsRecorder;
@@ -183,8 +187,28 @@ class ResourceService {
 
     final subjects = await subjectsFor(subjectIds);
 
-    // Fire-and-forget: callers don't wait on audio.
+    // Fire-and-forget: callers don't wait on audio or SVG images.
     unawaited(_prefetchAudio(subjects));
+    unawaited(_prefetchSvgs(subjects));
+  }
+
+  Future<void> _prefetchSvgs(List<WaniKaniSubject> subjects) async {
+    final urls = [
+      for (final subject in subjects)
+        if (subject.svgUrl case final url? when _svgCache.cached(url) == null)
+          url,
+    ];
+    for (final url in urls) {
+      await _svgCache.getOrDownload(url);
+    }
+  }
+
+  /// Returns the cached SVG file for [subject]'s radical image, or `null` if
+  /// the subject has no SVG or the file hasn't been downloaded yet.
+  File? cachedSvgFile(WaniKaniSubject subject) {
+    final url = subject.svgUrl;
+    if (url == null) return null;
+    return _svgCache.cached(url);
   }
 
   Future<void> _prefetchAudio(List<WaniKaniSubject> subjects) async {
@@ -242,11 +266,12 @@ class ResourceService {
     return AudioResource.remote(url);
   }
 
-  /// Deletes all cached learning content and audio, and resets the cache
-  /// statistics.
+  /// Deletes all cached learning content, audio, and SVG images, and resets
+  /// the cache statistics.
   Future<void> purge() async {
     await _subjectCache.clear();
     await _audioCache.clear();
+    await _svgCache.clear();
     await _httpCacheStore.clear();
     await _statsRecorder.reset();
     _audioProgress.value = const AudioDownloadProgress();

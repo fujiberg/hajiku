@@ -7,6 +7,7 @@ import 'package:hajiku/src/core/cache/audio_cache.dart';
 import 'package:hajiku/src/core/cache/cache_stats.dart';
 import 'package:hajiku/src/core/cache/cache_stats_store.dart';
 import 'package:hajiku/src/core/cache/subject_cache.dart';
+import 'package:hajiku/src/core/cache/svg_cache.dart';
 import 'package:hajiku/src/core/connectivity/connectivity_service.dart';
 import 'package:hajiku/src/core/resources/resource_service.dart';
 import 'package:hajiku/src/core/settings/models/app_settings.dart';
@@ -83,6 +84,7 @@ void main() {
       ),
       subjectCache: SubjectCache(directory: dir),
       audioCache: AudioCache(directory: dir, httpClient: httpClient),
+      svgCache: SvgCache(directory: dir, httpClient: httpClient),
       connectivity: _FakeConnectivity(wifi),
       httpCacheStore: InMemoryHttpCacheStore(),
       statsRecorder: CacheStatsRecorder(store: CacheStatsStore()),

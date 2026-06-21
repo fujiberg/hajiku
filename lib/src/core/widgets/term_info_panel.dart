@@ -4,6 +4,7 @@ import '../theme/subject_type_style.dart';
 import '../wanikani/models/wanikani_assignment.dart';
 import '../wanikani/models/wanikani_subject.dart';
 import 'pronunciation_audio_button.dart';
+import 'subject_character_display.dart';
 import 'wanikani_markup_text.dart';
 
 /// Which half of a [TermInfoPanel] to emphasize, hiding the other half by
@@ -150,9 +151,10 @@ class _AnswerSection extends StatelessWidget {
             color: color,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(
-            subject.displayText,
-            style: const TextStyle(fontSize: 28, color: Colors.white),
+          child: SubjectCharacterDisplay(
+            subject: subject,
+            size: 28,
+            color: Colors.white,
           ),
         ),
         const SizedBox(width: 16),

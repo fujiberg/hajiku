@@ -13,6 +13,7 @@ import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/models/wanikani_subject.dart';
 import '../../core/wanikani/providers.dart';
 import '../../core/widgets/flick_keyboard/flick_kana_keyboard.dart';
+import '../../core/widgets/subject_character_display.dart';
 import '../../core/widgets/term_info_panel.dart';
 import '../lessons/lesson_screen.dart';
 import '../settings/settings_screen.dart';
@@ -438,12 +439,10 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
                                     ),
                               ),
                               const SizedBox(height: 16),
-                              Text(
-                                subject.displayText,
-                                style: const TextStyle(
-                                  fontSize: 64,
-                                  color: Colors.white,
-                                ),
+                              SubjectCharacterDisplay(
+                                subject: subject,
+                                size: 64,
+                                color: Colors.white,
                               ),
                             ],
                           ),

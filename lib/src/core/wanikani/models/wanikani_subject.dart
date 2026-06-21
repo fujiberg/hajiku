@@ -184,6 +184,7 @@ class WaniKaniSubject {
     required this.meanings,
     required this.auxiliaryMeanings,
     required this.readings,
+    this.svgUrl,
     this.meaningMnemonic,
     this.readingMnemonic,
     this.contextSentences = const [],
@@ -196,12 +197,18 @@ class WaniKaniSubject {
     final auxiliaryMeanings = data['auxiliary_meanings'] as List<dynamic>?;
     final contextSentences = data['context_sentences'] as List<dynamic>?;
     final pronunciationAudios = data['pronunciation_audios'] as List<dynamic>?;
+    final characterImages = data['character_images'] as List<dynamic>?;
+    final svgImage = characterImages
+        ?.cast<Map<String, dynamic>>()
+        .where((img) => img['content_type'] == 'image/svg+xml')
+        .firstOrNull;
 
     return WaniKaniSubject(
       id: json['id'] as int,
       type: WaniKaniSubjectType.fromApiValue(json['object'] as String),
       characters: data['characters'] as String?,
       slug: data['slug'] as String,
+      svgUrl: svgImage?['url'] as String?,
       meanings: (data['meanings'] as List<dynamic>)
           .map((e) => WaniKaniMeaning.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -238,6 +245,11 @@ class WaniKaniSubject {
     'data': {
       'characters': characters,
       'slug': slug,
+      'character_images': svgUrl != null
+          ? [
+              {'url': svgUrl, 'content_type': 'image/svg+xml'},
+            ]
+          : null,
       'meanings': [for (final m in meanings) m.toJson()],
       'auxiliary_meanings': [for (final m in auxiliaryMeanings) m.toJson()],
       'readings': [for (final r in readings) r.toJson()],
@@ -252,12 +264,18 @@ class WaniKaniSubject {
   final WaniKaniSubjectType type;
 
   /// The subject's characters, or `null` for radicals with no unicode
-  /// representation (use [slug] as a fallback for those).
+  /// representation (use [slug] as a display fallback for those, or [svgUrl]
+  /// if available).
   final String? characters;
 
   /// A short text identifier, used as a display fallback when [characters]
-  /// is `null`.
+  /// is `null` and no [svgUrl] is available.
   final String slug;
+
+  /// URL of the SVG character image for radicals that have no Unicode
+  /// representation. `null` for all other subjects and radicals that do have
+  /// a character.
+  final String? svgUrl;
 
   final List<WaniKaniMeaning> meanings;
   final List<WaniKaniAuxiliaryMeaning> auxiliaryMeanings;
