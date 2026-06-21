@@ -331,6 +331,10 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
           _shakeController.forward(from: 0);
           if (settings?.invalidInputHapticFeedbackEnabled ?? true) {
             HapticFeedback.heavyImpact();
+            Future.delayed(
+              const Duration(milliseconds: 80),
+              HapticFeedback.heavyImpact,
+            );
           }
         case SubmitResult.correct:
           if (settings?.hapticFeedbackEnabled ?? true) {
