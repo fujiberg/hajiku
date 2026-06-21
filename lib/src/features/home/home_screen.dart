@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/resources/resource_providers.dart';
+import '../../core/resources/resource_service.dart';
 import '../../core/theme/subject_type_style.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
 import '../../core/wanikani/models/wanikani_user.dart';
@@ -25,6 +27,7 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('弾く Hajiku'),
         actions: [
+          const _DownloadIndicator(),
           IconButton(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
@@ -103,30 +106,7 @@ class _Dashboard extends ConsumerWidget {
             isWarning: true,
           ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _ActionButton(
-                label: 'Lessons',
-                count: ref.watch(wanikaniLessonCountProvider),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const LessonScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _ActionButton(
-                label: 'Reviews',
-                count: ref.watch(wanikaniReviewCountProvider),
-                tonal: true,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const ReviewScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
+        const _SessionActions(),
         const SizedBox(height: 24),
         Text('To level up', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -163,6 +143,142 @@ class _Dashboard extends ConsumerWidget {
   String _daysAtLevel(DateTime startedAt) {
     final days = DateTime.now().difference(startedAt).inDays;
     return days == 0 ? 'started today' : '$days day${days == 1 ? '' : 's'}';
+  }
+}
+
+/// The "Lessons" and "Reviews" entry points, gated on the home preparation
+/// (subject download) completing so a session never starts before its
+/// learning content is cached. Returning from a session re-runs preparation,
+/// picking up anything newly available.
+class _SessionActions extends ConsumerWidget {
+  const _SessionActions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preparation = ref.watch(cachePreparationProvider);
+
+    return preparation.when(
+      data: (_) => Row(
+        children: [
+          Expanded(
+            child: _ActionButton(
+              label: 'Lessons',
+              count: ref.watch(wanikaniLessonCountProvider),
+              onPressed: () => _openSession(context, ref, const LessonScreen()),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _ActionButton(
+              label: 'Reviews',
+              count: ref.watch(wanikaniReviewCountProvider),
+              tonal: true,
+              onPressed: () => _openSession(context, ref, const ReviewScreen()),
+            ),
+          ),
+        ],
+      ),
+      loading: () => const _PreparingIndicator(),
+      error: (error, _) => _PreparationError(
+        onRetry: () => ref.invalidate(cachePreparationProvider),
+      ),
+    );
+  }
+
+  Future<void> _openSession(
+    BuildContext context,
+    WidgetRef ref,
+    Widget screen,
+  ) async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => screen));
+    // Reviews/lessons can change what's available, so re-prepare the cache and
+    // refresh the pending counts on return.
+    ref.invalidate(cachePreparationProvider);
+    ref.invalidate(wanikaniLessonCountProvider);
+    ref.invalidate(wanikaniReviewCountProvider);
+  }
+}
+
+/// Shown in place of the session buttons while the cache is being prepared.
+class _PreparingIndicator extends StatelessWidget {
+  const _PreparingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Preparing lessons & reviews…',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when preparing the cache fails (e.g. no connection), with a retry.
+class _PreparationError extends StatelessWidget {
+  const _PreparationError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 18),
+          const SizedBox(width: 8),
+          const Text('Could not prepare lessons & reviews'),
+          const SizedBox(width: 8),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small spinner shown left of the settings button while pronunciation
+/// audio is downloading in the background.
+class _DownloadIndicator extends ConsumerWidget {
+  const _DownloadIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(audioDownloadProgressProvider);
+
+    return ValueListenableBuilder<AudioDownloadProgress>(
+      valueListenable: progress,
+      builder: (context, value, _) {
+        if (!value.inProgress) return const SizedBox.shrink();
+        return const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -269,7 +385,9 @@ class _SubscriptionBanner extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             message,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: color),
           ),
         ],
       ),
@@ -295,7 +413,9 @@ class _ProgressTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = type.color;
     final watermarkColor = color.withValues(alpha: 0.4);
-    final mutedColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45);
+    final mutedColor = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.45);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -335,9 +455,9 @@ class _ProgressTile extends StatelessWidget {
                   ),
                   Text(
                     '/$total',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: mutedColor,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: mutedColor),
                   ),
                 ],
               ),
@@ -350,4 +470,3 @@ class _ProgressTile extends StatelessWidget {
     );
   }
 }
-

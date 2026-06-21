@@ -12,7 +12,7 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core diff
 
 - **Flutter / Dart** — mobile first, iOS + Android
 - **WaniKani API v2** — token-based auth, no backend
-- **Local storage** — `flutter_secure_storage` for the WaniKani API token, `shared_preferences` for app settings. Offline queue/caching strategy still TBD.
+- **Local storage** — `flutter_secure_storage` for the WaniKani API token, `shared_preferences` for app settings, and a file-based on-device cache (via `path_provider`) for WaniKani subjects and pronunciation audio. See `.claude/caching.md`.
 
 ## Repo structure
 
@@ -25,6 +25,9 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core diff
   - `romaji/` — romaji-to-kana conversion and input formatter
   - `settings/` — app settings (persisted via `shared_preferences`)
   - `wanikani/` — WaniKani API v2 client and models
+  - `cache/` — on-device subject and audio caches
+  - `connectivity/` — Wi-Fi vs. metered connection detection
+  - `resources/` — `ResourceService`, the single facade for cached learning content
   - `widgets/` — shared widgets (e.g. `TermInfoPanel`)
 - `lib/src/features/` — feature modules, one directory per feature (added as built)
 - `test/` — widget and unit tests
@@ -39,5 +42,6 @@ Hajiku (弾く) is a Flutter app for WaniKani reviews and lessons. Its core diff
 ## Further reading
 
 - `.claude/api-wanikani.md` — WaniKani API v2 notes
+- `.claude/caching.md` — on-device caching of subjects and audio, and the resource service facade
 - `.claude/widget-flick-input.md` — flick kana keyboard design, gestures, and constraints
 - `.claude/answer-validation.md` — answer validation rules for reading and meaning quizzes

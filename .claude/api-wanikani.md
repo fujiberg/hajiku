@@ -13,6 +13,22 @@ Notes on how Hajiku talks to the [WaniKani API v2](https://docs.api.wanikani.com
 - Both exceptions implement the sealed `WaniKaniException` (`wanikani_exception.dart`), so callers can catch one type
   for "auth problem, send the user back to onboarding" vs. "API problem, best-effort/ignore".
 
+## Caching and rate limits
+
+- **Conditional GETs**: `_get` takes a `cacheable` flag. When set, it sends
+  `If-None-Match` using an `ETag` stored in an injected `HttpCacheStore`
+  (`http_cache_store.dart`), and reuses the cached body on a `304 Not
+  Modified`. Applied to `getUser`, `getLevelProgressions`, and `getSubjects`.
+  The store is shared via `httpCacheStoreProvider` (in-memory) so the resource
+  layer can clear it on cache purge.
+- **`updated_after`**: `getSubjects(ids, updatedAfter:)` fetches only subjects
+  changed since a time — used by `ResourceService` to revalidate already-cached
+  subjects cheaply (see `.claude/caching.md`).
+- **429 handling**: all requests go through `_sendWithRetry`, which retries on
+  `429 Too Many Requests`, waiting the `Retry-After` period (seconds or HTTP
+  date, capped at 60s, up to 4 retries) so we back off instead of hammering.
+- `sleep` and `cacheStore` are constructor-injectable for tests.
+
 ## Pagination
 
 List endpoints (`assignments`, `subjects`, `level_progressions`) are paginated. `_getAllPages` follows
@@ -28,8 +44,9 @@ Callers always get the full result set — there's no partial-page API in this c
 - `GET /assignments?immediately_available_for_lessons=true` → `getLessonAssignments()`.
 - `GET /assignments?per_page=1&immediately_available_for_lessons=...&immediately_available_for_review=...` →
   `getAssignmentCount(...)` — reads `total_count` from the response to get a count without fetching `data`.
-- `GET /subjects?ids=...` → `getSubjects(ids)` — returns `[]` without a request if `ids` is empty (radicals,
-  kanji, vocabulary as `WaniKaniSubject`).
+- `GET /subjects?ids=...` → `getSubjects(ids, {updatedAfter})` — returns `[]` without a request if `ids` is empty
+  (radicals, kanji, vocabulary as `WaniKaniSubject`). Cacheable (`ETag`); pass `updatedAfter` to fetch only changed
+  subjects. Usually called via `ResourceService`, not directly.
 - `GET /level_progressions` → `getLevelProgressions()`.
 - `POST /reviews` → `submitReview({assignmentId, incorrectMeaningAnswers, incorrectReadingAnswers})` — submits a
   completed review, advancing or resetting the assignment's SRS stage.

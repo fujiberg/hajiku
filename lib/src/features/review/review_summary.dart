@@ -9,14 +9,12 @@ import 'models/review_session.dart';
 /// Session summary shown after all review quizzes are answered. Displays a
 /// per-type breakdown and overall first-try accuracy, and calls out a level-up
 /// if the user's WaniKani level increased during this session.
+///
+/// There's intentionally no "next reviews/lessons" shortcut here: finishing a
+/// session can change what's available, so the user returns to the home screen
+/// (via "Done"), which re-prepares the cache before another session.
 class ReviewSummary extends ConsumerWidget {
-  const ReviewSummary({
-    super.key,
-    required this.items,
-    this.priorLevel,
-    this.onNextReviews,
-    this.onNextLessons,
-  });
+  const ReviewSummary({super.key, required this.items, this.priorLevel});
 
   final List<ReviewItem> items;
 
@@ -24,21 +22,13 @@ class ReviewSummary extends ConsumerWidget {
   /// higher, a level-up banner is shown.
   final int? priorLevel;
 
-  /// Called when the user taps "Next reviews". Only shown when non-null and
-  /// reviews are available.
-  final VoidCallback? onNextReviews;
-
-  /// Called when the user taps "Next lessons". Only shown when non-null and
-  /// lessons are available.
-  final VoidCallback? onNextLessons;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentLevel = ref.watch(wanikaniUserProvider).value?.level;
     final leveledUp =
-        priorLevel != null && currentLevel != null && currentLevel > priorLevel!;
-    final reviewCount = ref.watch(wanikaniReviewCountProvider).value ?? 0;
-    final lessonCount = ref.watch(wanikaniLessonCountProvider).value ?? 0;
+        priorLevel != null &&
+        currentLevel != null &&
+        currentLevel > priorLevel!;
 
     final total = items.length;
     final firstTryTotal = items.where(_isFirstTry).length;
@@ -116,29 +106,12 @@ class ReviewSummary extends ConsumerWidget {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(24, 8, 24, 8 + bottomInset),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (onNextReviews != null && reviewCount > 0) ...[
-                FilledButton.tonal(
-                  onPressed: onNextReviews,
-                  child: Text('Next reviews ($reviewCount)'),
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (onNextLessons != null && lessonCount > 0) ...[
-                FilledButton.tonal(
-                  onPressed: onNextLessons,
-                  child: Text('Next lessons ($lessonCount)'),
-                ),
-                const SizedBox(height: 8),
-              ],
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Done'),
-              ),
-            ],
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Done'),
+            ),
           ),
         ),
       ],
@@ -161,7 +134,9 @@ class _LevelUpBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF00AAFF).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF00AAFF).withValues(alpha: 0.4)),
+        border: Border.all(
+          color: const Color(0xFF00AAFF).withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         children: [

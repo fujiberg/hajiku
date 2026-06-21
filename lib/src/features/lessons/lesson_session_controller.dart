@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/resources/resource_providers.dart';
 import '../../core/settings/settings_controller.dart';
-import '../../core/wanikani/providers.dart';
 import '../review/review_session_controller.dart';
 import 'models/lesson_session.dart';
 
@@ -11,8 +11,8 @@ import 'models/lesson_session.dart';
 class LessonSessionController extends AsyncNotifier<LessonSessionState> {
   @override
   Future<LessonSessionState> build() async {
-    final client = ref.watch(wanikaniApiClientProvider);
-    final allAssignments = await client.getLessonAssignments();
+    final resources = ref.watch(resourceServiceProvider);
+    final allAssignments = await resources.getLessonAssignments();
 
     if (allAssignments.isEmpty) {
       return const LessonSessionState(items: [], currentIndex: 0);
@@ -23,7 +23,7 @@ class LessonSessionController extends AsyncNotifier<LessonSessionState> {
         .take(settings.lessonsPerSession)
         .toList();
 
-    final items = await fetchReviewItems(client, assignments);
+    final items = await fetchReviewItems(resources, assignments);
 
     return LessonSessionState(items: items, currentIndex: 0);
   }

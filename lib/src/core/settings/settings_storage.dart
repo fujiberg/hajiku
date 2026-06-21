@@ -21,6 +21,8 @@ class SettingsStorage {
   static const _flickKeyboardEnabledKey = 'settings_flick_keyboard_enabled';
   static const _flickKeyboardSubmitEnabledKey =
       'settings_flick_keyboard_submit_enabled';
+  static const _cacheVoiceDataKey = 'settings_cache_voice_data';
+  static const _voiceWifiOnlyKey = 'settings_voice_wifi_only';
 
   final SharedPreferencesAsync _preferences;
 
@@ -57,6 +59,12 @@ class SettingsStorage {
       flickKeyboardSubmitEnabled:
           await _preferences.getBool(_flickKeyboardSubmitEnabledKey) ??
           defaults.flickKeyboardSubmitEnabled,
+      cacheVoiceData:
+          await _preferences.getBool(_cacheVoiceDataKey) ??
+          defaults.cacheVoiceData,
+      voiceWifiOnly:
+          await _preferences.getBool(_voiceWifiOnlyKey) ??
+          defaults.voiceWifiOnly,
     );
   }
 
@@ -89,6 +97,12 @@ class SettingsStorage {
 
   Future<void> setFlickKeyboardSubmitEnabled(bool value) =>
       _preferences.setBool(_flickKeyboardSubmitEnabledKey, value);
+
+  Future<void> setCacheVoiceData(bool value) =>
+      _preferences.setBool(_cacheVoiceDataKey, value);
+
+  Future<void> setVoiceWifiOnly(bool value) =>
+      _preferences.setBool(_voiceWifiOnlyKey, value);
 }
 
 final settingsStorageProvider = Provider<SettingsStorage>(

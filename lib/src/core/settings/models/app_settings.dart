@@ -11,6 +11,8 @@ class AppSettings {
     this.invalidInputHapticFeedbackEnabled = true,
     this.flickKeyboardEnabled = true,
     this.flickKeyboardSubmitEnabled = true,
+    this.cacheVoiceData = true,
+    this.voiceWifiOnly = false,
   });
 
   static const defaultLessonsPerSession = 5;
@@ -60,6 +62,15 @@ class AppSettings {
   /// system keyboard's Enter key.
   final bool flickKeyboardSubmitEnabled;
 
+  /// Whether pronunciation audio is downloaded and stored on-device for
+  /// offline playback. When off, audio is streamed from WaniKani on demand.
+  final bool cacheVoiceData;
+
+  /// Whether automatic voice playback/caching is restricted to Wi-Fi. When on
+  /// and off Wi-Fi, audio is not played automatically — but an explicit tap on
+  /// a play button still downloads and plays it.
+  final bool voiceWifiOnly;
+
   AppSettings copyWith({
     int? lessonsPerSession,
     int? reviewsPerSession,
@@ -71,6 +82,8 @@ class AppSettings {
     bool? invalidInputHapticFeedbackEnabled,
     bool? flickKeyboardEnabled,
     bool? flickKeyboardSubmitEnabled,
+    bool? cacheVoiceData,
+    bool? voiceWifiOnly,
   }) {
     return AppSettings(
       lessonsPerSession: lessonsPerSession ?? this.lessonsPerSession,
@@ -89,6 +102,8 @@ class AppSettings {
       flickKeyboardEnabled: flickKeyboardEnabled ?? this.flickKeyboardEnabled,
       flickKeyboardSubmitEnabled:
           flickKeyboardSubmitEnabled ?? this.flickKeyboardSubmitEnabled,
+      cacheVoiceData: cacheVoiceData ?? this.cacheVoiceData,
+      voiceWifiOnly: voiceWifiOnly ?? this.voiceWifiOnly,
     );
   }
 }

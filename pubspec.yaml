@@ -41,6 +41,9 @@ dependencies:
   audioplayers: ^6.7.1
   fl_chart: ^1.2.0
   url_launcher: ^6.3.1
+  path_provider: ^2.1.5
+  connectivity_plus: ^7.0.0
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:

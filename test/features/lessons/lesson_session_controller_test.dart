@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hajiku/src/core/cache/cache_paths.dart';
 import 'package:hajiku/src/core/settings/settings_controller.dart';
 import 'package:hajiku/src/core/wanikani/providers.dart';
 import 'package:hajiku/src/core/wanikani/wanikani_api_client.dart';
@@ -12,9 +14,16 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  late Directory cacheDir;
+
   setUp(() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+    cacheDir = Directory.systemTemp.createTempSync('lesson_controller_test');
+  });
+
+  tearDown(() {
+    if (cacheDir.existsSync()) cacheDir.deleteSync(recursive: true);
   });
 
   const radicalAssignment = {
@@ -109,6 +118,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
+        cacheDirectoryProvider.overrideWithValue(cacheDir),
         wanikaniApiClientProvider.overrideWithValue(
           WaniKaniApiClient(
             tokenProvider: () async => 'test-token',
@@ -118,6 +128,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    // Keep the auto-dispose session provider alive for the test's duration, as
+    // the on-screen widget would; otherwise it can dispose between the await
+    // on its future and the next read.
+    container.listen(lessonSessionControllerProvider, (_, _) {});
     return container;
   }
 

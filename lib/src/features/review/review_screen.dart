@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/resources/audio_resource_source.dart';
+import '../../core/resources/resource_providers.dart';
 import '../../core/romaji/romaji_kana_input_formatter.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/subject_type_style.dart';
+import '../../core/wanikani/models/wanikani_subject.dart';
 import '../../core/wanikani/providers.dart';
 import '../../core/widgets/flick_keyboard/flick_kana_keyboard.dart';
 import '../../core/widgets/term_info_panel.dart';
@@ -109,20 +112,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               return ReviewSummary(
                 items: {for (final q in session.initialQueue) q.item}.toList(),
                 priorLevel: _levelAtStart,
-                onNextReviews: widget.isLessonQuiz
-                    ? null
-                    : () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ReviewScreen(title: widget.title),
-                        ),
-                      ),
-                onNextLessons: widget.isLessonQuiz
-                    ? () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const LessonScreen(),
-                        ),
-                      )
-                    : null,
               );
             }
             return _QuizBody(session: session);
@@ -194,7 +183,6 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
 
 /// Shows the current quiz and its answer input.
 class _QuizBody extends ConsumerStatefulWidget {
@@ -342,13 +330,14 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
             final audios =
                 widget.session.current?.item.subject.pronunciationAudios;
             if (audios != null && audios.isNotEmpty) {
-              final pool =
-                  audios.where((a) => a.contentType == 'audio/mpeg').toList();
+              final pool = audios
+                  .where((a) => a.contentType == 'audio/mpeg')
+                  .toList();
               final audio =
                   (pool.isNotEmpty ? pool : audios)[Random().nextInt(
                     pool.isNotEmpty ? pool.length : audios.length,
                   )];
-              _audioPlayer.play(UrlSource(audio.url));
+              _playAudio(audio);
             }
           }
           if (settings?.autoAdvanceEnabled ?? false) {
@@ -368,6 +357,17 @@ class _QuizBodyState extends ConsumerState<_QuizBody>
     }
   }
 
+  /// Plays [audio] through the resource service. This is automatic playback
+  /// (not a button tap), so it honors the "voice over Wi-Fi only" setting and
+  /// is silently skipped when playback is suppressed.
+  Future<void> _playAudio(WaniKaniPronunciationAudio audio) async {
+    final resource = await ref
+        .read(resourceServiceProvider)
+        .resolveAudio(audio, userInitiated: false);
+    if (resource != null && mounted) {
+      await _audioPlayer.play(resource.toSource());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -1,22 +1,30 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../resources/audio_resource_source.dart';
+import '../resources/resource_providers.dart';
 import '../wanikani/models/wanikani_subject.dart';
 
 /// A button that plays a single [WaniKaniPronunciationAudio] clip, showing
 /// the voice actor's name and toggling between a play and stop icon while
 /// the clip is loading or playing.
-class PronunciationAudioButton extends StatefulWidget {
+///
+/// Playback goes through the resource service: a cached clip plays instantly,
+/// otherwise it's downloaded first. Tapping the button is an explicit,
+/// user-initiated action, so it plays even on a metered connection.
+class PronunciationAudioButton extends ConsumerStatefulWidget {
   const PronunciationAudioButton({super.key, required this.audio});
 
   final WaniKaniPronunciationAudio audio;
 
   @override
-  State<PronunciationAudioButton> createState() =>
+  ConsumerState<PronunciationAudioButton> createState() =>
       _PronunciationAudioButtonState();
 }
 
-class _PronunciationAudioButtonState extends State<PronunciationAudioButton> {
+class _PronunciationAudioButtonState
+    extends ConsumerState<PronunciationAudioButton> {
   final _player = AudioPlayer();
   bool _isPlaying = false;
 
@@ -38,10 +46,19 @@ class _PronunciationAudioButtonState extends State<PronunciationAudioButton> {
     if (_isPlaying) {
       await _player.stop();
       if (mounted) setState(() => _isPlaying = false);
-    } else {
-      setState(() => _isPlaying = true);
-      await _player.play(UrlSource(widget.audio.url));
+      return;
     }
+
+    setState(() => _isPlaying = true);
+    final resource = await ref
+        .read(resourceServiceProvider)
+        .resolveAudio(widget.audio, userInitiated: true);
+    if (!mounted) return;
+    if (resource == null) {
+      setState(() => _isPlaying = false);
+      return;
+    }
+    await _player.play(resource.toSource());
   }
 
   @override

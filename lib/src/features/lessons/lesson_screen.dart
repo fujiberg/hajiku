@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/resources/resource_providers.dart';
 import '../../core/settings/settings_controller.dart';
-import '../../core/wanikani/providers.dart';
 import '../../core/wanikani/wanikani_exception.dart';
 import '../../core/widgets/term_info_panel.dart';
 import '../review/models/review_session.dart';
@@ -128,11 +128,11 @@ class _LessonBrowseBody extends ConsumerWidget {
   ) async {
     final settings = await ref.read(settingsControllerProvider.future);
     if (settings.submitReviewResultsEnabled) {
-      final client = ref.read(wanikaniApiClientProvider);
+      final resources = ref.read(resourceServiceProvider);
       await Future.wait(
         items.map((item) async {
           try {
-            await client.startAssignment(item.assignmentId);
+            await resources.startAssignment(item.assignmentId);
           } on WaniKaniException {
             // Starting an assignment is best-effort: if it fails, the quiz
             // still runs locally, and the later review submission for this

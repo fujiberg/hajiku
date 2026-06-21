@@ -66,6 +66,16 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     _update((settings) => settings.copyWith(flickKeyboardSubmitEnabled: value));
   }
 
+  Future<void> setCacheVoiceData(bool value) async {
+    await ref.read(settingsStorageProvider).setCacheVoiceData(value);
+    _update((settings) => settings.copyWith(cacheVoiceData: value));
+  }
+
+  Future<void> setVoiceWifiOnly(bool value) async {
+    await ref.read(settingsStorageProvider).setVoiceWifiOnly(value);
+    _update((settings) => settings.copyWith(voiceWifiOnly: value));
+  }
+
   void _update(AppSettings Function(AppSettings settings) update) {
     final current = state.value;
     if (current != null) state = AsyncData(update(current));

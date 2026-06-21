@@ -143,9 +143,9 @@ class _ScopeChips extends StatelessWidget {
           Chip(
             label: Text(
               scope,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontFamily: 'monospace',
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(fontFamily: 'monospace'),
             ),
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
@@ -166,10 +166,8 @@ class _LinkButton extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: TextButton.icon(
-        onPressed: () => launchUrl(
-          Uri.parse(url),
-          mode: LaunchMode.externalApplication,
-        ),
+        onPressed: () =>
+            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
         icon: const Icon(Icons.open_in_new, size: 14),
         label: Text(label),
         style: TextButton.styleFrom(

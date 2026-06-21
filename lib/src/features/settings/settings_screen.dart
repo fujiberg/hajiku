@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/cache/cache_providers.dart';
+import '../../core/cache/cache_stats.dart';
+import '../../core/resources/resource_providers.dart';
 import '../../core/settings/models/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -127,6 +130,38 @@ class _SettingsList extends ConsumerWidget {
           onChanged: controller.setKeyboardSubmitEnabled,
         ),
         const Divider(),
+        const _SectionHeader('Voice audio & storage'),
+        SwitchListTile(
+          title: const Text('Cache voice audio'),
+          subtitle: const Text(
+            'Download pronunciation audio to play offline. Turn off to stream '
+            'it on demand and save space',
+          ),
+          value: settings.cacheVoiceData,
+          onChanged: controller.setCacheVoiceData,
+        ),
+        SwitchListTile(
+          title: const Text('Voice over Wi-Fi only'),
+          subtitle: Text(
+            settings.cacheVoiceData
+                ? 'Only download audio automatically on Wi-Fi. Tapping a play '
+                      'button still works on mobile data'
+                : 'Only play audio automatically on Wi-Fi. Tapping a play '
+                      'button still works on mobile data',
+          ),
+          value: settings.voiceWifiOnly,
+          onChanged: controller.setVoiceWifiOnly,
+        ),
+        const _CacheStatsView(),
+        ListTile(
+          title: const Text('Clear cached data'),
+          subtitle: const Text(
+            'Remove downloaded subjects and audio, and reset these statistics',
+          ),
+          leading: const Icon(Icons.delete_outline),
+          onTap: () => _confirmPurge(context, ref),
+        ),
+        const Divider(),
         const _SectionHeader('Account'),
         ListTile(
           title: const Text('Change API token'),
@@ -216,6 +251,42 @@ class _SettingsList extends ConsumerWidget {
       ],
     );
   }
+
+  /// Confirms, then deletes all cached subjects and audio. The home screen
+  /// re-downloads what's needed the next time it prepares a session.
+  Future<void> _confirmPurge(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear cached data?'),
+        content: const Text(
+          'Downloaded subjects and audio will be removed. They will be '
+          'fetched again the next time you start lessons or reviews.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await ref.read(resourceServiceProvider).purge();
+    // Re-prepare the cache: this re-downloads what's needed and, via the
+    // dependency in cacheContentsProvider, refreshes the statistics below.
+    ref.invalidate(cachePreparationProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cache cleared — re-downloading…')),
+      );
+    }
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -233,6 +304,95 @@ class _SectionHeader extends StatelessWidget {
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+}
+
+/// Compact, informational view of what's cached and how the cache has
+/// performed since it was last cleared. The contents (terms/voices) are a
+/// snapshot; the request counters update live.
+class _CacheStatsView extends ConsumerWidget {
+  const _CacheStatsView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final contents = ref.watch(cacheContentsProvider);
+    final recorder = ref.watch(cacheStatsRecorderProvider);
+
+    return ValueListenableBuilder<CacheStats>(
+      valueListenable: recorder.listenable,
+      builder: (context, stats, _) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Column(
+            children: [
+              contents.maybeWhen(
+                data: (c) => Column(
+                  children: [
+                    _StatRow(label: 'Terms cached', value: '${c.terms}'),
+                    _StatRow(
+                      label: 'Voices cached',
+                      value: c.voices == 0
+                          ? '0'
+                          : '${c.voices} · ${_formatBytes(c.voiceBytes)}',
+                    ),
+                  ],
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+              _StatRow(
+                label: 'Cache hits (spared calls)',
+                value: '${stats.cacheHits}',
+              ),
+              _StatRow(
+                label: 'Network requests',
+                value: '${stats.networkRequests}',
+              ),
+              _StatRow(label: 'Re-fetched', value: '${stats.fetched}'),
+              _StatRow(
+                label: 'Uncacheable requests',
+                value: '${stats.uncacheable}',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
+/// A single label/value row in the cache statistics view.
+class _StatRow extends StatelessWidget {
+  const _StatRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: muted)),
+          Text(
+            value,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: muted,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }

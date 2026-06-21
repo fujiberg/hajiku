@@ -20,6 +20,14 @@ enum WaniKaniSubjectType {
         throw ArgumentError('Unknown WaniKani subject type: $value');
     }
   }
+
+  /// The `object`/`subject_type` value as used by the WaniKani API.
+  String get apiValue => switch (this) {
+    WaniKaniSubjectType.radical => 'radical',
+    WaniKaniSubjectType.kanji => 'kanji',
+    WaniKaniSubjectType.vocabulary => 'vocabulary',
+    WaniKaniSubjectType.kanaVocabulary => 'kana_vocabulary',
+  };
 }
 
 /// A user's progress on a single subject, as returned by `GET /assignments`.

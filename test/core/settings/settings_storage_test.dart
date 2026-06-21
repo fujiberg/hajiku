@@ -22,6 +22,8 @@ void main() {
     expect(settings.vocabAudioEnabled, isTrue);
     expect(settings.flickKeyboardEnabled, isTrue);
     expect(settings.flickKeyboardSubmitEnabled, isTrue);
+    expect(settings.cacheVoiceData, isTrue);
+    expect(settings.voiceWifiOnly, isFalse);
   });
 
   test('persisted values are returned on subsequent reads', () async {
@@ -34,6 +36,8 @@ void main() {
     await storage.setVocabAudioEnabled(false);
     await storage.setFlickKeyboardEnabled(false);
     await storage.setFlickKeyboardSubmitEnabled(false);
+    await storage.setCacheVoiceData(false);
+    await storage.setVoiceWifiOnly(true);
 
     final settings = await storage.read();
 
@@ -44,5 +48,7 @@ void main() {
     expect(settings.vocabAudioEnabled, isFalse);
     expect(settings.flickKeyboardEnabled, isFalse);
     expect(settings.flickKeyboardSubmitEnabled, isFalse);
+    expect(settings.cacheVoiceData, isFalse);
+    expect(settings.voiceWifiOnly, isTrue);
   });
 }

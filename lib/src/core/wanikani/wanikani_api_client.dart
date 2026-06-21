@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../cache/cache_stats.dart';
+import 'http_cache_store.dart';
 import 'models/wanikani_assignment.dart';
 import 'models/wanikani_level_progression.dart';
 import 'models/wanikani_subject.dart';
@@ -10,18 +13,43 @@ import 'wanikani_exception.dart';
 
 /// Thin client for the WaniKani API v2 (https://docs.api.wanikani.com).
 class WaniKaniApiClient {
-  WaniKaniApiClient({required this._tokenProvider, http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+  WaniKaniApiClient({
+    required this._tokenProvider,
+    http.Client? httpClient,
+    HttpCacheStore? cacheStore,
+    this.statsRecorder,
+    Future<void> Function(Duration)? sleep,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _cacheStore = cacheStore ?? InMemoryHttpCacheStore(),
+       _sleep = sleep ?? Future<void>.delayed;
 
   static final Uri _baseUrl = Uri.parse('https://api.wanikani.com/v2/');
   static const _apiRevision = '20170710';
 
+  /// How many times a request is retried after a `429 Too Many Requests`
+  /// before giving up.
+  static const _maxRateLimitRetries = 4;
+
+  /// Upper bound on how long to wait between retries, regardless of what the
+  /// server's `Retry-After` header asks for.
+  static const _maxRetryWait = Duration(seconds: 60);
+
   final Future<String?> Function() _tokenProvider;
   final http.Client _httpClient;
 
+  /// Caches `ETag`/body pairs for conditional GETs (see [_get]).
+  final HttpCacheStore _cacheStore;
+
+  /// Records cache hit/miss statistics, if wired in.
+  final CacheStatsRecorder? statsRecorder;
+
+  /// Waits for the given duration between rate-limit retries. Injectable so
+  /// tests can run without real delays.
+  final Future<void> Function(Duration) _sleep;
+
   /// Fetches the authenticated user's profile, validating the API token.
   Future<WaniKaniUser> getUser() async {
-    final json = await _get(_baseUrl.resolve('user'));
+    final json = await _get(_baseUrl.resolve('user'), cacheable: true);
     return WaniKaniUser.fromJson(json);
   }
 
@@ -80,13 +108,26 @@ class WaniKaniApiClient {
   }
 
   /// Fetches the subjects (radicals/kanji/vocabulary) with the given [ids].
-  Future<List<WaniKaniSubject>> getSubjects(List<int> ids) {
+  ///
+  /// Pass [updatedAfter] to fetch only subjects changed since that time — used
+  /// to cheaply revalidate already-cached subjects (the response is usually
+  /// empty, since subject data changes very rarely).
+  Future<List<WaniKaniSubject>> getSubjects(
+    List<int> ids, {
+    DateTime? updatedAfter,
+  }) {
     if (ids.isEmpty) return Future.value(const []);
 
     final uri = _baseUrl
         .resolve('subjects')
-        .replace(queryParameters: {'ids': ids.join(',')});
-    return _getAllPages(uri, WaniKaniSubject.fromJson);
+        .replace(
+          queryParameters: {
+            'ids': ids.join(','),
+            if (updatedAfter != null)
+              'updated_after': updatedAfter.toUtc().toIso8601String(),
+          },
+        );
+    return _getAllPages(uri, WaniKaniSubject.fromJson, cacheable: true);
   }
 
   /// Submits the result of a completed review for [assignmentId], advancing
@@ -96,30 +137,24 @@ class WaniKaniApiClient {
     required int incorrectMeaningAnswers,
     required int incorrectReadingAnswers,
   }) async {
-    final token = await _tokenProvider();
-    if (token == null || token.isEmpty) {
-      throw const WaniKaniAuthException('No WaniKani API token configured.');
-    }
-
-    final response = await _httpClient.post(
-      _baseUrl.resolve('reviews'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Wanikani-Revision': _apiRevision,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'review': {
-          'assignment_id': assignmentId,
-          'incorrect_meaning_answers': incorrectMeaningAnswers,
-          'incorrect_reading_answers': incorrectReadingAnswers,
-        },
-      }),
+    final response = await _sendWithRetry(
+      (headers) => _httpClient.post(
+        _baseUrl.resolve('reviews'),
+        headers: {...headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'review': {
+            'assignment_id': assignmentId,
+            'incorrect_meaning_answers': incorrectMeaningAnswers,
+            'incorrect_reading_answers': incorrectReadingAnswers,
+          },
+        }),
+      ),
     );
 
     switch (response.statusCode) {
       case 200:
       case 201:
+        statsRecorder?.recordUncacheable();
         return;
       case 401:
         throw const WaniKaniAuthException('WaniKani API token was rejected.');
@@ -135,24 +170,18 @@ class WaniKaniApiClient {
   /// Marks assignment [assignmentId] as started, which WaniKani requires
   /// before a review result can be submitted for a lesson item.
   Future<void> startAssignment(int assignmentId) async {
-    final token = await _tokenProvider();
-    if (token == null || token.isEmpty) {
-      throw const WaniKaniAuthException('No WaniKani API token configured.');
-    }
-
-    final response = await _httpClient.put(
-      _baseUrl.resolve('assignments/$assignmentId/start'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Wanikani-Revision': _apiRevision,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({}),
+    final response = await _sendWithRetry(
+      (headers) => _httpClient.put(
+        _baseUrl.resolve('assignments/$assignmentId/start'),
+        headers: {...headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({}),
+      ),
     );
 
     switch (response.statusCode) {
       case 200:
       case 201:
+        statsRecorder?.recordUncacheable();
         return;
       case 401:
         throw const WaniKaniAuthException('WaniKani API token was rejected.');
@@ -170,6 +199,7 @@ class WaniKaniApiClient {
     return _getAllPages(
       _baseUrl.resolve('level_progressions'),
       WaniKaniLevelProgression.fromJson,
+      cacheable: true,
     );
   }
 
@@ -205,13 +235,14 @@ class WaniKaniApiClient {
   /// parsing each `data` entry with [fromJson].
   Future<List<T>> _getAllPages<T>(
     Uri uri,
-    T Function(Map<String, dynamic>) fromJson,
-  ) async {
+    T Function(Map<String, dynamic>) fromJson, {
+    bool cacheable = false,
+  }) async {
     final items = <T>[];
     Uri? next = uri;
 
     while (next != null) {
-      final json = await _get(next);
+      final json = await _get(next, cacheable: cacheable);
       items.addAll(
         (json['data'] as List<dynamic>).map(
           (e) => fromJson(e as Map<String, dynamic>),
@@ -225,23 +256,41 @@ class WaniKaniApiClient {
     return items;
   }
 
-  Future<Map<String, dynamic>> _get(Uri uri) async {
-    final token = await _tokenProvider();
-    if (token == null || token.isEmpty) {
-      throw const WaniKaniAuthException('No WaniKani API token configured.');
-    }
+  /// Performs an authenticated GET, decoding the JSON body.
+  ///
+  /// When [cacheable], the request is made conditional: if a previous response
+  /// for [uri] was cached, its `ETag` is sent as `If-None-Match`, and a `304
+  /// Not Modified` reply reuses the cached body instead of re-downloading it.
+  /// Fresh `200` responses with an `ETag` are stored for next time.
+  Future<Map<String, dynamic>> _get(Uri uri, {bool cacheable = false}) async {
+    final key = uri.toString();
+    final cached = cacheable ? await _cacheStore.read(key) : null;
 
-    final response = await _httpClient.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Wanikani-Revision': _apiRevision,
-      },
+    final response = await _sendWithRetry(
+      (headers) => _httpClient.get(
+        uri,
+        headers: {...headers, if (cached != null) 'If-None-Match': cached.etag},
+      ),
     );
 
     switch (response.statusCode) {
       case 200:
+        if (cacheable) {
+          statsRecorder?.recordFetched();
+          final etag = response.headers['etag'];
+          if (etag != null) {
+            await _cacheStore.write(
+              key,
+              CachedHttpResponse(etag: etag, body: response.body),
+            );
+          }
+        } else {
+          statsRecorder?.recordUncacheable();
+        }
         return jsonDecode(response.body) as Map<String, dynamic>;
+      case 304:
+        statsRecorder?.recordRevalidated();
+        return jsonDecode(cached!.body) as Map<String, dynamic>;
       case 401:
         throw const WaniKaniAuthException('WaniKani API token was rejected.');
       default:
@@ -251,5 +300,53 @@ class WaniKaniApiClient {
           '${response.statusCode}.',
         );
     }
+  }
+
+  /// Resolves the auth/revision headers and invokes [send], transparently
+  /// retrying when WaniKani responds with `429 Too Many Requests`. Each retry
+  /// waits for the period indicated by the response's `Retry-After` header
+  /// (capped at [_maxRetryWait]) so we back off cleanly instead of hammering
+  /// the rate-limited endpoint.
+  Future<http.Response> _sendWithRetry(
+    Future<http.Response> Function(Map<String, String> headers) send,
+  ) async {
+    final token = await _tokenProvider();
+    if (token == null || token.isEmpty) {
+      throw const WaniKaniAuthException('No WaniKani API token configured.');
+    }
+    final headers = {
+      'Authorization': 'Bearer $token',
+      'Wanikani-Revision': _apiRevision,
+    };
+
+    for (var attempt = 0; ; attempt++) {
+      final response = await send(headers);
+      if (response.statusCode != 429 || attempt >= _maxRateLimitRetries) {
+        return response;
+      }
+      await _sleep(_retryAfter(response));
+    }
+  }
+
+  /// How long to wait before retrying a rate-limited request, read from the
+  /// `Retry-After` header (a number of seconds, or an HTTP date). Falls back
+  /// to one second and is clamped to [_maxRetryWait].
+  Duration _retryAfter(http.Response response) {
+    final header = response.headers['retry-after'];
+    var wait = const Duration(seconds: 1);
+    if (header != null) {
+      final seconds = int.tryParse(header.trim());
+      if (seconds != null) {
+        wait = Duration(seconds: seconds);
+      } else {
+        try {
+          wait = HttpDate.parse(header).difference(DateTime.now());
+        } on HttpException {
+          // Unparseable header — fall back to the default wait.
+        }
+      }
+    }
+    if (wait < Duration.zero) wait = Duration.zero;
+    return wait > _maxRetryWait ? _maxRetryWait : wait;
   }
 }

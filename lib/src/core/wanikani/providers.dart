@@ -1,16 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
+import '../cache/cache_providers.dart';
 import '../theme/srs_stage_style.dart';
+import 'http_cache_store.dart';
 import 'models/wanikani_assignment.dart';
 import 'models/wanikani_level_progression.dart';
 import 'models/wanikani_user.dart';
 import 'wanikani_api_client.dart';
 
+/// Shared store backing the API client's conditional (`ETag`) GET requests.
+/// A single instance so cached responses are reused across calls, and so the
+/// resource service can clear it when purging the cache.
+final httpCacheStoreProvider = Provider<HttpCacheStore>(
+  (ref) => InMemoryHttpCacheStore(),
+);
+
 /// API client authenticated with the currently stored token, if any.
 final wanikaniApiClientProvider = Provider<WaniKaniApiClient>((ref) {
   final token = ref.watch(authControllerProvider).value;
-  return WaniKaniApiClient(tokenProvider: () async => token);
+  return WaniKaniApiClient(
+    tokenProvider: () async => token,
+    cacheStore: ref.watch(httpCacheStoreProvider),
+    statsRecorder: ref.watch(cacheStatsRecorderProvider),
+  );
 });
 
 /// The authenticated user's WaniKani profile.

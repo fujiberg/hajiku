@@ -19,6 +19,12 @@ class WaniKaniMeaning {
   final String meaning;
   final bool primary;
   final bool acceptedAnswer;
+
+  Map<String, dynamic> toJson() => {
+    'meaning': meaning,
+    'primary': primary,
+    'accepted_answer': acceptedAnswer,
+  };
 }
 
 /// Whether an auxiliary meaning is an additionally accepted answer
@@ -40,6 +46,13 @@ class WaniKaniAuxiliaryMeaning {
 
   final String meaning;
   final WaniKaniAuxiliaryMeaningType type;
+
+  Map<String, dynamic> toJson() => {
+    'meaning': meaning,
+    'type': type == WaniKaniAuxiliaryMeaningType.whitelist
+        ? 'whitelist'
+        : 'blacklist',
+  };
 }
 
 /// The category of a kanji reading. `null` for non-kanji subjects.
@@ -84,6 +97,18 @@ class WaniKaniReading {
   /// For kanji subjects, whether this is an on'yomi, kun'yomi, or nanori
   /// reading. `null` for radicals and vocabulary.
   final WaniKaniReadingType? type;
+
+  Map<String, dynamic> toJson() => {
+    'reading': reading,
+    'primary': primary,
+    'accepted_answer': acceptedAnswer,
+    'type': switch (type) {
+      WaniKaniReadingType.onyomi => 'onyomi',
+      WaniKaniReadingType.kunyomi => 'kunyomi',
+      WaniKaniReadingType.nanori => 'nanori',
+      null => null,
+    },
+  };
 }
 
 /// An example sentence for a vocabulary subject, as returned within
@@ -103,6 +128,8 @@ class WaniKaniContextSentence {
 
   final String english;
   final String japanese;
+
+  Map<String, dynamic> toJson() => {'en': english, 'ja': japanese};
 }
 
 /// A voice actor's recording of a subject's reading, as returned within
@@ -136,6 +163,15 @@ class WaniKaniPronunciationAudio {
 
   /// The name of the voice actor who recorded this clip.
   final String? voiceActorName;
+
+  Map<String, dynamic> toJson() => {
+    'url': url,
+    'content_type': contentType,
+    'metadata': {
+      'pronunciation': pronunciation,
+      'voice_actor_name': voiceActorName,
+    },
+  };
 }
 
 /// A radical, kanji, or vocabulary subject, as returned by `GET /subjects`.
@@ -192,6 +228,25 @@ class WaniKaniSubject {
           .toList(),
     );
   }
+
+  /// Serializes back into the same shape WaniKani's `GET /subjects` returns,
+  /// so a round-trip through [fromJson] reproduces this subject. Used to
+  /// persist subjects in the on-device cache.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'object': type.apiValue,
+    'data': {
+      'characters': characters,
+      'slug': slug,
+      'meanings': [for (final m in meanings) m.toJson()],
+      'auxiliary_meanings': [for (final m in auxiliaryMeanings) m.toJson()],
+      'readings': [for (final r in readings) r.toJson()],
+      'meaning_mnemonic': meaningMnemonic,
+      'reading_mnemonic': readingMnemonic,
+      'context_sentences': [for (final s in contextSentences) s.toJson()],
+      'pronunciation_audios': [for (final a in pronunciationAudios) a.toJson()],
+    },
+  };
 
   final int id;
   final WaniKaniSubjectType type;

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hajiku/src/core/cache/cache_paths.dart';
 import 'package:hajiku/src/core/settings/settings_controller.dart';
 import 'package:hajiku/src/core/wanikani/providers.dart';
 import 'package:hajiku/src/core/wanikani/models/wanikani_subject.dart';
@@ -14,9 +16,16 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  late Directory cacheDir;
+
   setUp(() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+    cacheDir = Directory.systemTemp.createTempSync('review_controller_test');
+  });
+
+  tearDown(() {
+    if (cacheDir.existsSync()) cacheDir.deleteSync(recursive: true);
   });
 
   const radicalAssignment = {
@@ -131,6 +140,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
+        cacheDirectoryProvider.overrideWithValue(cacheDir),
         wanikaniApiClientProvider.overrideWithValue(
           WaniKaniApiClient(
             tokenProvider: () async => 'test-token',
@@ -140,6 +150,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    // Keep the auto-dispose session provider alive for the test's duration, as
+    // the on-screen widget would; otherwise it can dispose between the await
+    // on its future and the next read.
+    container.listen(reviewSessionControllerProvider, (_, _) {});
     return container;
   }
 
@@ -293,16 +307,17 @@ void main() {
 
   test('seeds the session from PendingLessonQuizItems without fetching '
       'review assignments', () async {
+    final radical = WaniKaniSubject.fromJson(radicalSubject);
+    final item = ReviewItem(assignmentId: 100, subject: radical);
+    // Seed before the container pins (and thus builds) the session provider.
+    PendingLessonQuizItems.seed([item]);
+
     final container = buildContainer(
       assignments: [],
       subjects: [],
       onReviewSubmitted: (_) =>
           fail('should not fetch assignments or submit reviews'),
     );
-
-    final radical = WaniKaniSubject.fromJson(radicalSubject);
-    final item = ReviewItem(assignmentId: 100, subject: radical);
-    PendingLessonQuizItems.seed([item]);
 
     final session = await container.read(
       reviewSessionControllerProvider.future,

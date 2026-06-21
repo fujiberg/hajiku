@@ -2,23 +2,27 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/resources/resource_providers.dart';
+import '../../core/resources/resource_service.dart';
 import '../../core/romaji/romaji_converter.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/wanikani/models/wanikani_assignment.dart';
-import '../../core/wanikani/providers.dart';
-import '../../core/wanikani/wanikani_api_client.dart';
 import '../../core/wanikani/wanikani_exception.dart';
 import 'models/review_session.dart';
 
 /// Fetches the subjects for [assignments] and pairs each with its assignment
 /// into a [ReviewItem], in the given order. Assignments whose subject can't be
 /// fetched are dropped. Shared by the review and lesson session controllers.
+///
+/// Subjects come from the resource service's cache (populated by the home
+/// screen's preparation step), so this is a fast, network-free load.
 Future<List<ReviewItem>> fetchReviewItems(
-  WaniKaniApiClient client,
+  ResourceService resources,
   List<WaniKaniAssignment> assignments,
 ) async {
-  final subjects = await client.getSubjects(
+  final subjects = await resources.subjectsFor(
     assignments.map((a) => a.subjectId).toList(),
+    revalidate: false,
   );
   final subjectsById = {for (final subject in subjects) subject.id: subject};
   return [
@@ -61,8 +65,8 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
       return _stateFor(seeded);
     }
 
-    final client = ref.watch(wanikaniApiClientProvider);
-    final allAssignments = await client.getReviewAssignments();
+    final resources = ref.watch(resourceServiceProvider);
+    final allAssignments = await resources.getReviewAssignments();
 
     if (allAssignments.isEmpty) return const ReviewSessionState.empty();
 
@@ -72,7 +76,7 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         .take(settings.reviewsPerSession)
         .toList();
 
-    return _stateFor(await fetchReviewItems(client, assignments));
+    return _stateFor(await fetchReviewItems(resources, assignments));
   }
 
   /// Builds the initial session state for [items], or an empty session if
@@ -93,7 +97,9 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   /// once the user has seen the result.
   SubmitResult submitAnswer(String input) {
     final session = state.value;
-    if (session == null || session.feedback != null) return SubmitResult.invalidInput;
+    if (session == null || session.feedback != null) {
+      return SubmitResult.invalidInput;
+    }
 
     final quiz = session.current;
     if (quiz == null) return SubmitResult.invalidInput;
@@ -189,14 +195,16 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
   String _normalizeReading(String input) => input.replaceAll(RegExp(r'\s'), '');
 
   /// Returns true if every character in [input] is hiragana or katakana.
-  bool _isAllKana(String input) => input.runes.every((r) =>
-      (r >= 0x3040 && r <= 0x309F) || // hiragana
-      (r >= 0x30A0 && r <= 0x30FF)); // katakana
+  bool _isAllKana(String input) => input.runes.every(
+    (r) =>
+        (r >= 0x3040 && r <= 0x309F) || // hiragana
+        (r >= 0x30A0 && r <= 0x30FF),
+  ); // katakana
 
   /// Returns true if [input] contains any hiragana or katakana character.
-  bool _containsKana(String input) => input.runes.any((r) =>
-      (r >= 0x3040 && r <= 0x309F) ||
-      (r >= 0x30A0 && r <= 0x30FF));
+  bool _containsKana(String input) => input.runes.any(
+    (r) => (r >= 0x3040 && r <= 0x309F) || (r >= 0x30A0 && r <= 0x30FF),
+  );
 
   /// Strips punctuation and collapses internal whitespace for a meaning input.
   String _normalizeMeaning(String input) => input
@@ -214,7 +222,11 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     final b = accepted.toLowerCase();
     if (a == b) return true;
     if (accepted.contains(RegExp(r'\d'))) return false;
-    final threshold = a.length <= 3 ? 0 : a.length <= 7 ? 1 : 2;
+    final threshold = a.length <= 3
+        ? 0
+        : a.length <= 7
+        ? 1
+        : 2;
     if (threshold == 0) return false;
     return _levenshtein(a, b) <= threshold;
   }
@@ -249,7 +261,7 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
     if (!ref.mounted) return;
 
     await ref
-        .read(wanikaniApiClientProvider)
+        .read(resourceServiceProvider)
         .submitReview(
           assignmentId: item.assignmentId,
           incorrectMeaningAnswers: item.incorrectMeaningAnswers,

@@ -1,11 +1,16 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hajiku/src/core/cache/cache_stats.dart';
+import 'package:hajiku/src/core/cache/cache_stats_store.dart';
+import 'package:hajiku/src/core/wanikani/http_cache_store.dart';
 import 'package:hajiku/src/core/wanikani/models/wanikani_assignment.dart';
 import 'package:hajiku/src/core/wanikani/wanikani_api_client.dart';
 import 'package:hajiku/src/core/wanikani/wanikani_exception.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
   test('returns the parsed user on a 200 response', () async {
@@ -559,6 +564,199 @@ void main() {
     expect(assignments[0].availableAt, DateTime.utc(2026, 6, 15, 1));
     expect(assignments[1].srsStage, 6);
     expect(assignments[1].availableAt, DateTime.utc(2026, 6, 15, 8));
+  });
+
+  test('retries after a 429, waiting the Retry-After period', () async {
+    var requestCount = 0;
+    final waits = <Duration>[];
+    final mockClient = MockClient((request) async {
+      requestCount++;
+      if (requestCount < 3) {
+        return http.Response('', 429, headers: {'retry-after': '2'});
+      }
+      return http.Response(
+        jsonEncode({
+          'object': 'user',
+          'data': {
+            'username': 'taro',
+            'level': 5,
+            'subscription': {
+              'active': true,
+              'type': 'recurring',
+              'max_level_granted': 60,
+              'period_ends_at': null,
+            },
+          },
+        }),
+        200,
+      );
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+      sleep: (d) async => waits.add(d),
+    );
+
+    final user = await client.getUser();
+
+    expect(user.username, 'taro');
+    expect(requestCount, 3);
+    expect(waits, [const Duration(seconds: 2), const Duration(seconds: 2)]);
+  });
+
+  test('gives up after exhausting 429 retries', () async {
+    var requestCount = 0;
+    final mockClient = MockClient((request) async {
+      requestCount++;
+      return http.Response('', 429, headers: {'retry-after': '1'});
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+      sleep: (_) async {},
+    );
+
+    await expectLater(
+      client.getUser(),
+      throwsA(
+        isA<WaniKaniApiException>().having((e) => e.statusCode, 'status', 429),
+      ),
+    );
+    // The initial attempt plus four retries.
+    expect(requestCount, 5);
+  });
+
+  test('sends If-None-Match and reuses the cached body on a 304', () async {
+    final store = InMemoryHttpCacheStore();
+    var requestCount = 0;
+    String? sentIfNoneMatch;
+    final body = jsonEncode({
+      'object': 'user',
+      'data': {
+        'username': 'taro',
+        'level': 7,
+        'subscription': {
+          'active': true,
+          'type': 'recurring',
+          'max_level_granted': 60,
+          'period_ends_at': null,
+        },
+      },
+    });
+
+    final mockClient = MockClient((request) async {
+      requestCount++;
+      sentIfNoneMatch = request.headers['If-None-Match'];
+      if (requestCount == 1) {
+        return http.Response(body, 200, headers: {'etag': 'abc123'});
+      }
+      return http.Response('', 304);
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+      cacheStore: store,
+    );
+
+    final first = await client.getUser();
+    expect(first.level, 7);
+    expect(sentIfNoneMatch, isNull);
+
+    final second = await client.getUser();
+    expect(second.level, 7, reason: 'cached body is reused on a 304');
+    expect(sentIfNoneMatch, 'abc123');
+    expect(requestCount, 2);
+  });
+
+  test('includes updated_after when fetching subjects', () async {
+    final updatedAfter = DateTime.utc(2026, 6, 1, 12);
+    final mockClient = MockClient((request) async {
+      expect(request.url.path, '/v2/subjects');
+      expect(request.url.queryParameters['ids'], '1,2');
+      expect(
+        request.url.queryParameters['updated_after'],
+        updatedAfter.toIso8601String(),
+      );
+      return http.Response(
+        jsonEncode({
+          'pages': {'next_url': null},
+          'data': <Object>[],
+        }),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    });
+
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      httpClient: mockClient,
+    );
+
+    final subjects = await client.getSubjects([
+      1,
+      2,
+    ], updatedAfter: updatedAfter);
+    expect(subjects, isEmpty);
+  });
+
+  test('records cache statistics for fetched, revalidated and uncacheable '
+      'requests', () async {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+    final recorder = CacheStatsRecorder(store: CacheStatsStore());
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    final userBody = jsonEncode({
+      'object': 'user',
+      'data': {
+        'username': 'taro',
+        'level': 1,
+        'subscription': {
+          'active': true,
+          'type': 'recurring',
+          'max_level_granted': 60,
+          'period_ends_at': null,
+        },
+      },
+    });
+
+    var userRequests = 0;
+    final client = WaniKaniApiClient(
+      tokenProvider: () async => 'test-token',
+      statsRecorder: recorder,
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/v2/user') {
+          userRequests++;
+          return userRequests == 1
+              ? http.Response(userBody, 200, headers: {'etag': 'u1'})
+              : http.Response('', 304);
+        }
+        // A non-cacheable endpoint.
+        return http.Response(
+          jsonEncode({
+            'total_count': 1,
+            'pages': {'next_url': null},
+            'data': <Object>[],
+          }),
+          200,
+        );
+      }),
+    );
+
+    await client.getUser(); // cacheable 200 -> fetched
+    await client.getUser(); // cacheable 304 -> revalidated
+    await client.getAssignmentCount(
+      immediatelyAvailableForReview: true,
+    ); // uncacheable
+
+    expect(recorder.value.fetched, 1);
+    expect(recorder.value.revalidated, 1);
+    expect(recorder.value.uncacheable, 1);
+    expect(recorder.value.cacheHits, 1);
+    expect(recorder.value.networkRequests, 3);
   });
 
   test('parses an assignment without an available_at', () async {

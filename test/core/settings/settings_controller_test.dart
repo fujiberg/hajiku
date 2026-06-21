@@ -101,4 +101,38 @@ void main() {
       expect(reloaded.flickKeyboardSubmitEnabled, isFalse);
     },
   );
+
+  test('setCacheVoiceData updates state and persists the value', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await container.read(settingsControllerProvider.future);
+
+    await container
+        .read(settingsControllerProvider.notifier)
+        .setCacheVoiceData(false);
+
+    expect(
+      container.read(settingsControllerProvider).value?.cacheVoiceData,
+      isFalse,
+    );
+    final reloaded = await container.read(settingsStorageProvider).read();
+    expect(reloaded.cacheVoiceData, isFalse);
+  });
+
+  test('setVoiceWifiOnly updates state and persists the value', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await container.read(settingsControllerProvider.future);
+
+    await container
+        .read(settingsControllerProvider.notifier)
+        .setVoiceWifiOnly(true);
+
+    expect(
+      container.read(settingsControllerProvider).value?.voiceWifiOnly,
+      isTrue,
+    );
+    final reloaded = await container.read(settingsStorageProvider).read();
+    expect(reloaded.voiceWifiOnly, isTrue);
+  });
 }
