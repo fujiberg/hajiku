@@ -111,6 +111,14 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
         return SubmitResult.invalidInput;
       }
       correct = quiz.item.subject.acceptedReadings.contains(normalized);
+      if (!correct) {
+        final collapsedInput = _collapseSmallKana(normalized);
+        if (quiz.item.subject.acceptedReadings.any(
+          (r) => _collapseSmallKana(r) == collapsedInput,
+        )) {
+          return SubmitResult.invalidInput;
+        }
+      }
     } else {
       final normalized = _normalizeMeaning(input);
       if (normalized.isEmpty || _containsKana(normalized)) {
@@ -190,6 +198,20 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
       }
     }
   }
+
+  static const _smallToLarge = {
+    'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お',
+    'っ': 'つ',
+    'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ',
+    'ゎ': 'わ', 'ゕ': 'か', 'ゖ': 'け',
+    'ァ': 'ア', 'ィ': 'イ', 'ゥ': 'ウ', 'ェ': 'エ', 'ォ': 'オ',
+    'ッ': 'ツ',
+    'ャ': 'ヤ', 'ュ': 'ユ', 'ョ': 'ヨ',
+    'ヮ': 'ワ', 'ヵ': 'カ', 'ヶ': 'ケ',
+  };
+
+  String _collapseSmallKana(String s) =>
+      s.split('').map((ch) => _smallToLarge[ch] ?? ch).join();
 
   /// Strips all whitespace from a reading input.
   String _normalizeReading(String input) => input.replaceAll(RegExp(r'\s'), '');

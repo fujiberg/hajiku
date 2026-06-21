@@ -7,6 +7,7 @@ Answer validation lives entirely in `ReviewSessionController.submitAnswer` (and 
 1. Strip all whitespace (including mid-string spaces).
 2. Reject as `invalidInput` if any character falls outside hiragana (U+3040–309F) or katakana (U+30A0–30FF).
 3. Match exactly against `acceptedReadings` (hiragana strings from the WaniKani API).
+4. If no match, check whether the input matches any accepted reading when all small kana are collapsed to their large equivalents (e.g. っ→つ, ゃ→や). If so, reject as `invalidInput` — the user typed the wrong size variant, not a wrong answer. Dakuten (voiced consonants) are unaffected by this check.
 
 ## Meaning quizzes
 
