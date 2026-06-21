@@ -194,10 +194,13 @@ class _SessionActions extends ConsumerWidget {
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => screen));
     // Reviews/lessons can change what's available, so re-prepare the cache and
-    // refresh the pending counts on return.
+    // refresh all home screen data on return.
     ref.invalidate(cachePreparationProvider);
     ref.invalidate(wanikaniLessonCountProvider);
     ref.invalidate(wanikaniReviewCountProvider);
+    ref.invalidate(wanikaniLevelProgressProvider);
+    ref.invalidate(wanikaniReviewForecastProvider);
+    ref.invalidate(wanikaniSrsDistributionProvider);
   }
 }
 
