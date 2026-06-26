@@ -72,6 +72,24 @@ class SubjectCache {
     );
   }
 
+  /// Returns every subject currently in the cache.
+  Future<List<WaniKaniSubject>> getAll() async {
+    if (!_subjectsDir.existsSync()) return const [];
+    final subjects = <WaniKaniSubject>[];
+    for (final entity in _subjectsDir.listSync()) {
+      if (entity is! File) continue;
+      try {
+        final json = jsonDecode(await entity.readAsString());
+        subjects.add(
+          WaniKaniSubject.fromJson(json as Map<String, dynamic>),
+        );
+      } on FormatException {
+        await entity.delete();
+      }
+    }
+    return subjects;
+  }
+
   /// The number of subjects currently cached.
   Future<int> count() async {
     if (!_subjectsDir.existsSync()) return 0;

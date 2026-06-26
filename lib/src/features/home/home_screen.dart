@@ -202,6 +202,7 @@ class _SessionActions extends ConsumerWidget {
     ref.invalidate(wanikaniReviewForecastProvider);
     ref.invalidate(wanikaniSrsDistributionProvider);
   }
+
 }
 
 /// Shown in place of the session buttons while the cache is being prepared.
