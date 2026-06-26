@@ -59,6 +59,17 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   /// re-fetch. Guards against re-invalidating on every rebuild.
   bool _levelUpCheckTriggered = false;
 
+  /// The last item seen during the session. Survives into the summary so the
+  /// info button can show details for the final item reviewed.
+  ReviewItem? _lastSeenItem;
+
+  /// The item whose details are currently unlocked for the info button. Set
+  /// when feedback arrives and it is safe to reveal full details (wrong answer,
+  /// or all quiz types completed). Cleared when new feedback arrives that does
+  /// not qualify (correct but item still incomplete). Intentionally persists
+  /// across the next() call so the button stays active between questions.
+  ReviewItem? _lastInfoItem;
+
   /// Shared audio player kept alive at screen scope so that a clip triggered
   /// on the last quiz is not cut off when Flutter swaps [_QuizBody] for
   /// [ReviewSummary].
@@ -73,6 +84,24 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(reviewSessionControllerProvider);
+    ref.listen(reviewSessionControllerProvider, (prev, next) {
+      final item = next.value?.current?.item;
+      if (item != null) _lastSeenItem = item;
+
+      // Only act when feedback transitions from null → non-null (new answer).
+      final prevFeedback = prev?.value?.feedback;
+      final nextFeedback = next.value?.feedback;
+      if (prevFeedback == null && nextFeedback != null) {
+        final quiz = next.value?.current;
+        if (quiz != null &&
+            (!nextFeedback.correct || quiz.item.isComplete)) {
+          _lastInfoItem = quiz.item;
+        } else {
+          _lastInfoItem = null;
+        }
+      }
+    });
+    final infoSubject = _infoSubject(session.value);
     final subjectTypeColor = session.value?.current?.item.subject.type.color;
     final needsExitConfirmation = _needsExitConfirmation(session.value);
 
@@ -97,6 +126,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           backgroundColor: subjectTypeColor,
           foregroundColor: subjectTypeColor != null ? Colors.white : null,
           actions: [
+            if (session.value != null && session.value!.totalItems > 0)
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                tooltip: 'Item details',
+                onPressed: infoSubject != null
+                    ? () => _showItemInfo(context, infoSubject)
+                    : null,
+              ),
             IconButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
@@ -169,6 +206,37 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       ),
     );
     return result ?? false;
+  }
+
+  /// The subject to show in the info panel, or null if info cannot be shown
+  /// yet. Returns the current item's subject once it is safe to reveal full
+  /// details (wrong answer, or all quiz types completed), or the last seen
+  /// item on the summary screen.
+  WaniKaniSubject? _infoSubject(ReviewSessionState? session) {
+    if (session == null || session.totalItems == 0) return null;
+    if (session.isFinished) return _lastSeenItem?.subject;
+    // Inline TermInfoPanel is already shown during wrong-answer feedback.
+    if (session.feedback != null && !session.feedback!.correct) return null;
+    return _lastInfoItem?.subject;
+  }
+
+  void _showItemInfo(BuildContext context, WaniKaniSubject subject) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        minChildSize: 0.3,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(16),
+          child: TermInfoPanel(subject: subject),
+        ),
+      ),
+    );
   }
 }
 
