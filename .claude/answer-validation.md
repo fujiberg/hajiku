@@ -9,6 +9,7 @@ Answer validation lives entirely in `ReviewSessionController.submitAnswer` (and 
 3. Match exactly against `acceptedReadings` (hiragana strings from the WaniKani API).
 4. If no match, check whether the input matches any accepted reading when all small kana are collapsed to their large equivalents (e.g. っ→つ, ゃ→や). If so, reject as `invalidInput` — the user typed the wrong size variant, not a wrong answer. Dakuten (voiced consonants) are unaffected by this check.
 5. If still no match, extract the maximal kana runs from `subject.characters` (converting katakana → hiragana) and check that every run appears as a substring in the answer (also converted to hiragana). If any run is missing, reject as `invalidInput` — the user omitted kana that were visible in the subject itself (e.g. typing おおき for 大きい where い is right there). Works correctly for mixed words: 走り書き produces runs ["り","き"], each checked independently.
+6. For kanji only: collect the reading types (on'yomi / kun'yomi / nanori) of all accepted readings, then check whether the answer matches any reading whose type is absent from that set. If so, reject as `invalidInput` — the user entered a valid reading of the wrong type (e.g. kun'yomi when on'yomi is expected).
 
 ## Meaning quizzes
 

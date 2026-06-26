@@ -132,6 +132,25 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
             return SubmitResult.invalidInput;
           }
         }
+        // For kanji: if the answer is a valid reading of the wrong type
+        // (e.g. kun'yomi when on'yomi is expected), treat as invalid input
+        // rather than marking it wrong.
+        if (quiz.item.subject.type == WaniKaniSubjectType.kanji) {
+          final acceptedTypes = quiz.item.subject.readings
+              .where((r) => r.acceptedAnswer)
+              .map((r) => r.type)
+              .toSet();
+          final answerHiragana = _toHiragana(normalized);
+          if (quiz.item.subject.readings.any(
+            (r) =>
+                !r.acceptedAnswer &&
+                r.type != null &&
+                !acceptedTypes.contains(r.type) &&
+                r.reading == answerHiragana,
+          )) {
+            return SubmitResult.invalidInput;
+          }
+        }
       }
     } else {
       final normalized = _normalizeMeaning(input);
