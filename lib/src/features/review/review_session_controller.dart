@@ -21,20 +21,12 @@ Future<List<ReviewItem>> fetchReviewItems(
   List<WaniKaniAssignment> assignments,
 ) async {
   final subjectIds = assignments.map((a) => a.subjectId).toList();
-  final (subjects, materialsById) = await (
-    resources.subjectsFor(subjectIds, revalidate: false),
-    resources.studyMaterialsFor(subjectIds),
-  ).wait;
+  final subjects = await resources.subjectsFor(subjectIds, revalidate: false);
   final subjectsById = {for (final subject in subjects) subject.id: subject};
   return [
     for (final assignment in assignments)
       if (subjectsById[assignment.subjectId] case final subject?)
-        ReviewItem(
-          assignmentId: assignment.id,
-          subject: subject,
-          meaningSynonyms:
-              materialsById[subject.id]?.meaningSynonyms ?? const [],
-        ),
+        ReviewItem(assignmentId: assignment.id, subject: subject),
   ];
 }
 
@@ -157,13 +149,17 @@ class ReviewSessionController extends AsyncNotifier<ReviewSessionState> {
       if (normalized.isEmpty || _containsKana(normalized)) {
         return SubmitResult.invalidInput;
       }
+      final synonyms =
+          ref
+              .read(resourceServiceProvider)
+              .studyMaterialFor(quiz.item.subject.id)
+              ?.meaningSynonyms ??
+          const [];
       correct =
           quiz.item.subject.acceptedMeanings.any(
             (meaning) => _meaningMatches(normalized, meaning),
           ) ||
-          quiz.item.meaningSynonyms.any(
-            (synonym) => _meaningMatches(normalized, synonym),
-          );
+          synonyms.any((synonym) => _meaningMatches(normalized, synonym));
       // If incorrect, check whether the input is romaji for an accepted reading.
       // If so, the user typed a reading instead of a meaning — treat as invalid
       // rather than wrong. This check must come after the correctness check so

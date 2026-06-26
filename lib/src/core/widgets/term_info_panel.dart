@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../resources/resource_providers.dart';
 import '../theme/subject_type_style.dart';
 import '../wanikani/models/wanikani_assignment.dart';
 import '../wanikani/models/wanikani_subject.dart';
@@ -18,17 +20,17 @@ enum TermInfoFocus { meaning, reading }
 /// [focus] is set, information for the other half (meaning vs. reading) is
 /// hidden until the user taps "Show all" — useful when only one half of the
 /// answer was being tested.
-class TermInfoPanel extends StatefulWidget {
+class TermInfoPanel extends ConsumerStatefulWidget {
   const TermInfoPanel({super.key, required this.subject, this.focus});
 
   final WaniKaniSubject subject;
   final TermInfoFocus? focus;
 
   @override
-  State<TermInfoPanel> createState() => _TermInfoPanelState();
+  ConsumerState<TermInfoPanel> createState() => _TermInfoPanelState();
 }
 
-class _TermInfoPanelState extends State<TermInfoPanel> {
+class _TermInfoPanelState extends ConsumerState<TermInfoPanel> {
   bool _showAll = false;
 
   @override
@@ -47,6 +49,13 @@ class _TermInfoPanelState extends State<TermInfoPanel> {
         ? false
         : widget.focus != null;
 
+    final synonyms =
+        ref
+            .watch(resourceServiceProvider)
+            .studyMaterialFor(subject.id)
+            ?.meaningSynonyms ??
+        const [];
+
     final sections = <Widget>[
       _AnswerSection(
         subject: subject,
@@ -54,6 +63,8 @@ class _TermInfoPanelState extends State<TermInfoPanel> {
         showMeaning: showMeaning,
         showReading: showReading,
       ),
+      if (showMeaning)
+        _SynonymsSection(subjectId: subject.id, synonyms: synonyms),
       if (showReading && audios.isNotEmpty)
         Wrap(
           spacing: 8,
@@ -117,6 +128,214 @@ class _TermInfoPanelState extends State<TermInfoPanel> {
       }
     }
     return byActor.values.toList();
+  }
+}
+
+/// Displays the user's custom meaning synonyms for a subject, with an inline
+/// editor (pencil icon → text fields + Save/Cancel) to add, remove, or change
+/// them. Changes are persisted to WaniKani and the local cache via
+/// [ResourceService.saveStudyMaterial].
+class _SynonymsSection extends ConsumerStatefulWidget {
+  const _SynonymsSection({required this.subjectId, required this.synonyms});
+
+  final int subjectId;
+  final List<String> synonyms;
+
+  @override
+  ConsumerState<_SynonymsSection> createState() => _SynonymsSectionState();
+}
+
+class _SynonymsSectionState extends ConsumerState<_SynonymsSection> {
+  bool _editing = false;
+  bool _saving = false;
+  // Owns the currently displayed synonyms so the view updates immediately
+  // after a save without waiting for a provider rebuild.
+  late List<String> _displayedSynonyms;
+  late List<TextEditingController> _controllers;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedSynonyms = List.of(widget.synonyms);
+    _controllers = _buildControllers(_displayedSynonyms);
+  }
+
+  @override
+  void didUpdateWidget(_SynonymsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // New subject (lesson browse): reset entirely from the incoming prop.
+    if (oldWidget.subjectId != widget.subjectId) {
+      _disposeControllers();
+      _displayedSynonyms = List.of(widget.synonyms);
+      _controllers = _buildControllers(_displayedSynonyms);
+      _editing = false;
+      _saving = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposeControllers();
+    super.dispose();
+  }
+
+  List<TextEditingController> _buildControllers(List<String> synonyms) =>
+      [for (final s in synonyms) TextEditingController(text: s)];
+
+  void _disposeControllers() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+  }
+
+  void _enterEdit() {
+    setState(() {
+      _disposeControllers();
+      _controllers = _buildControllers(_displayedSynonyms);
+      _editing = true;
+    });
+  }
+
+  void _cancel() {
+    setState(() {
+      _disposeControllers();
+      _controllers = _buildControllers(_displayedSynonyms);
+      _editing = false;
+    });
+  }
+
+  Future<void> _save() async {
+    final saved = [
+      for (final c in _controllers)
+        if (c.text.trim().isNotEmpty) c.text.trim(),
+    ];
+    setState(() => _saving = true);
+    try {
+      await ref.read(resourceServiceProvider).saveStudyMaterial(
+        subjectId: widget.subjectId,
+        synonyms: saved,
+      );
+      if (mounted) {
+        setState(() {
+          _displayedSynonyms = saved;
+          _editing = false;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subtleColor = theme.colorScheme.onSurfaceVariant;
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(color: subtleColor);
+
+    if (!_editing) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (_displayedSynonyms.isNotEmpty)
+            Expanded(
+              child: Text(
+                'Custom: ${_displayedSynonyms.join(', ')}',
+                style: labelStyle,
+              ),
+            )
+          else
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Opacity(
+                  opacity: 0.45,
+                  child: Text('Add answers', style: labelStyle),
+                ),
+              ),
+            ),
+          InkWell(
+            onTap: _enterEdit,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Opacity(
+                opacity: _displayedSynonyms.isEmpty ? 0.45 : 1.0,
+                child: Icon(Icons.edit_outlined, size: 14, color: subtleColor),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Custom answers', style: theme.textTheme.labelSmall),
+        const SizedBox(height: 8),
+        for (var i = 0; i < _controllers.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controllers[i],
+                    style: theme.textTheme.bodySmall,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 16),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() {
+                    _controllers[i].dispose();
+                    _controllers.removeAt(i);
+                  }),
+                ),
+              ],
+            ),
+          ),
+        TextButton.icon(
+          onPressed: () => setState(
+            () => _controllers.add(TextEditingController()),
+          ),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Add'),
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            TextButton(
+              onPressed: _saving ? null : _cancel,
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

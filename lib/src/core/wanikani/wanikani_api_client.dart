@@ -195,17 +195,91 @@ class WaniKaniApiClient {
     }
   }
 
-  /// Fetches study materials (user-created synonyms and notes) for the given
-  /// [subjectIds]. Returns only entries that exist — subjects with no custom
-  /// data are simply absent from the result.
-  Future<List<WaniKaniStudyMaterial>> getStudyMaterials(
-    List<int> subjectIds,
-  ) {
-    if (subjectIds.isEmpty) return Future.value(const []);
+  /// Fetches all study materials (user-created synonyms). Pass [updatedAfter]
+  /// to fetch only materials changed since that time — used for incremental
+  /// revalidation after an initial full fetch.
+  Future<List<WaniKaniStudyMaterial>> getStudyMaterials({
+    DateTime? updatedAfter,
+  }) {
     final uri = _baseUrl.resolve('study_materials').replace(
-      queryParameters: {'subject_ids': subjectIds.join(',')},
+      queryParameters: {
+        if (updatedAfter != null)
+          'updated_after': updatedAfter.toUtc().toIso8601String(),
+      },
     );
     return _getAllPages(uri, WaniKaniStudyMaterial.fromJson);
+  }
+
+  /// Creates a new study material for [subjectId] with the given
+  /// [meaningSynonyms]. Returns the created material including its assigned id.
+  Future<WaniKaniStudyMaterial> createStudyMaterial({
+    required int subjectId,
+    required List<String> meaningSynonyms,
+  }) async {
+    final response = await _sendWithRetry(
+      (headers) => _httpClient.post(
+        _baseUrl.resolve('study_materials'),
+        headers: {...headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'study_material': {
+            'subject_id': subjectId,
+            'meaning_synonyms': meaningSynonyms,
+          },
+        }),
+      ),
+    );
+
+    switch (response.statusCode) {
+      case 200:
+      case 201:
+        statsRecorder?.recordUncacheable();
+        return WaniKaniStudyMaterial.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+      case 401:
+        throw const WaniKaniAuthException('WaniKani API token was rejected.');
+      default:
+        throw WaniKaniApiException(
+          response.statusCode,
+          'WaniKani API request to create study material failed with status '
+          '${response.statusCode}.',
+        );
+    }
+  }
+
+  /// Updates the study material with [id], replacing its meaning synonyms.
+  /// Returns the updated material.
+  Future<WaniKaniStudyMaterial> updateStudyMaterial({
+    required int id,
+    required int subjectId,
+    required List<String> meaningSynonyms,
+  }) async {
+    final response = await _sendWithRetry(
+      (headers) => _httpClient.put(
+        _baseUrl.resolve('study_materials/$id'),
+        headers: {...headers, 'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'study_material': {'meaning_synonyms': meaningSynonyms},
+        }),
+      ),
+    );
+
+    switch (response.statusCode) {
+      case 200:
+      case 201:
+        statsRecorder?.recordUncacheable();
+        return WaniKaniStudyMaterial.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+      case 401:
+        throw const WaniKaniAuthException('WaniKani API token was rejected.');
+      default:
+        throw WaniKaniApiException(
+          response.statusCode,
+          'WaniKani API request to update study material $id failed with '
+          'status ${response.statusCode}.',
+        );
+    }
   }
 
   /// Fetches the user's progress through each WaniKani level.

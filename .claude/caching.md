@@ -17,6 +17,29 @@ What still bypasses it (intentionally): the home screen's dashboard stats
 `wanikaniLevelProgressProvider`, `wanikaniUserProvider`, …). These are SRS
 state and are always fetched fresh from `wanikaniApiClientProvider`.
 
+## Study materials (user synonyms) — cached, subject-id-keyed
+
+`StudyMaterialCache` (`lib/src/core/cache/study_material_cache.dart`) stores each
+`WaniKaniStudyMaterial` as a `<subjectId>.json` file under a `study_materials/`
+subdirectory. Keyed by subject id (not the material's own id) since that's how
+the rest of the app looks them up.
+
+`ResourceService.prepare()` fetches **all** study materials on first load
+(`GET /study_materials`), then uses `updated_after` on subsequent runs to pick up
+only server-side changes. The full set is kept in an in-memory
+`Map<int, WaniKaniStudyMaterial>` (`_studyMaterials`) for synchronous access
+during validation.
+
+`ResourceService.studyMaterialFor(subjectId)` is a synchronous getter on that
+in-memory map — safe to call during `submitAnswer` without awaiting.
+
+`ResourceService.saveStudyMaterial(subjectId, synonyms)` POSTs (create) or PUTs
+(update, using the material's stored `id`) to WaniKani, then updates both the
+in-memory map and the on-disk cache so the change is immediately reflected in
+answer validation and the UI.
+
+Purge clears the cache directory and the in-memory map.
+
 ## Subjects (learning info) — cached, id-keyed
 
 `SubjectCache` (`lib/src/core/cache/subject_cache.dart`) stores each subject as

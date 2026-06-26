@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../cache/audio_cache.dart';
 import '../cache/cache_paths.dart';
 import '../cache/cache_providers.dart';
+import '../cache/study_material_cache.dart';
 import '../cache/subject_cache.dart';
 import '../cache/svg_cache.dart';
 import '../connectivity/connectivity_service.dart';
@@ -13,6 +14,10 @@ import 'resource_service.dart';
 
 final subjectCacheProvider = Provider<SubjectCache>(
   (ref) => SubjectCache(directory: ref.watch(cacheDirectoryProvider)),
+);
+
+final studyMaterialCacheProvider = Provider<StudyMaterialCache>(
+  (ref) => StudyMaterialCache(directory: ref.watch(cacheDirectoryProvider)),
 );
 
 final audioCacheProvider = Provider<AudioCache>(
@@ -43,6 +48,7 @@ final resourceServiceProvider = Provider<ResourceService>((ref) {
   return ResourceService(
     client: ref.watch(wanikaniApiClientProvider),
     subjectCache: ref.watch(subjectCacheProvider),
+    studyMaterialCache: ref.watch(studyMaterialCacheProvider),
     audioCache: ref.watch(audioCacheProvider),
     svgCache: ref.watch(svgCacheProvider),
     connectivity: ref.watch(connectivityServiceProvider),

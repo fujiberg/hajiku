@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../cache/audio_cache.dart';
 import '../cache/cache_stats.dart';
+import '../cache/study_material_cache.dart';
 import '../cache/subject_cache.dart';
 import '../cache/svg_cache.dart';
 import '../connectivity/connectivity_service.dart';
@@ -59,6 +60,7 @@ class ResourceService {
   ResourceService({
     required this._client,
     required this._subjectCache,
+    required this._studyMaterialCache,
     required this._audioCache,
     required this._svgCache,
     required this._connectivity,
@@ -70,6 +72,7 @@ class ResourceService {
 
   final WaniKaniApiClient _client;
   final SubjectCache _subjectCache;
+  final StudyMaterialCache _studyMaterialCache;
   final AudioCache _audioCache;
   final SvgCache _svgCache;
   final ConnectivityService _connectivity;
@@ -80,8 +83,18 @@ class ResourceService {
   /// Reads the current app settings (voice caching / Wi-Fi-only).
   final Future<AppSettings> Function() settingsReader;
 
+  /// In-memory map of study materials, populated during [prepare] and kept
+  /// current by [saveStudyMaterial]. Keyed by subject id.
+  final Map<int, WaniKaniStudyMaterial> _studyMaterials = {};
+
   /// Background audio-prefetch progress, for the download indicator.
   ValueListenable<AudioDownloadProgress> get audioProgress => _audioProgress;
+
+  /// Returns the cached study material for [subjectId], or `null` if the
+  /// user has no custom data for that subject. Always reflects the latest
+  /// saved state — updated immediately by [saveStudyMaterial].
+  WaniKaniStudyMaterial? studyMaterialFor(int subjectId) =>
+      _studyMaterials[subjectId];
 
   /// Assignments with a review available right now (live SRS state).
   Future<List<WaniKaniAssignment>> getReviewAssignments() =>
@@ -107,15 +120,27 @@ class ResourceService {
   Future<void> startAssignment(int assignmentId) =>
       _client.startAssignment(assignmentId);
 
-  /// Fetches study materials (user-created synonyms) for [subjectIds]. Study
-  /// materials are mutable user data — not cached on disk; always fetched fresh.
-  /// Returns a map from subject id to its material; absent entries mean the user
-  /// has no custom data for that subject.
-  Future<Map<int, WaniKaniStudyMaterial>> studyMaterialsFor(
-    List<int> subjectIds,
-  ) async {
-    final materials = await _client.getStudyMaterials(subjectIds);
-    return {for (final m in materials) m.subjectId: m};
+  /// Saves [synonyms] as the custom meaning answers for [subjectId], creating
+  /// or updating the study material on WaniKani and updating both the in-memory
+  /// map and the on-disk cache immediately so validation and the UI reflect the
+  /// change without waiting for the next [prepare] run.
+  Future<void> saveStudyMaterial({
+    required int subjectId,
+    required List<String> synonyms,
+  }) async {
+    final existing = _studyMaterials[subjectId];
+    final material = existing == null
+        ? await _client.createStudyMaterial(
+            subjectId: subjectId,
+            meaningSynonyms: synonyms,
+          )
+        : await _client.updateStudyMaterial(
+            id: existing.id,
+            subjectId: subjectId,
+            meaningSynonyms: synonyms,
+          );
+    _studyMaterials[subjectId] = material;
+    await _studyMaterialCache.put(material);
   }
 
   /// Returns the subjects for [ids], served from the on-device cache.
@@ -170,18 +195,20 @@ class ResourceService {
   }
 
   /// Prepares everything needed to start lessons and reviews: fetches the
-  /// currently available assignments, ensures their subjects are cached, and
-  /// kicks off (without awaiting) a background download of their audio.
+  /// currently available assignments, ensures their subjects are cached, loads
+  /// all study materials (with incremental revalidation), and kicks off
+  /// (without awaiting) a background download of their audio.
   ///
   /// Completes once the learning content is ready — audio keeps downloading
   /// afterwards, surfaced via [audioProgress].
   Future<void> prepare() async {
-    final results = await Future.wait([
+    final (reviewAssignments, lessonAssignments, _) = await (
       getReviewAssignments(),
       getLessonAssignments(),
-    ]);
+      _loadStudyMaterials(),
+    ).wait;
     final subjectIds = {
-      for (final assignment in [...results[0], ...results[1]])
+      for (final assignment in [...reviewAssignments, ...lessonAssignments])
         assignment.subjectId,
     }.toList();
 
@@ -190,6 +217,25 @@ class ResourceService {
     // Fire-and-forget: callers don't wait on audio or SVG images.
     unawaited(_prefetchAudio(subjects));
     unawaited(_prefetchSvgs(subjects));
+  }
+
+  /// Loads study materials from the on-disk cache into [_studyMaterials], then
+  /// revalidates with `updated_after` to pick up any server-side changes.
+  Future<void> _loadStudyMaterials() async {
+    final cached = await _studyMaterialCache.getAll();
+    _studyMaterials
+      ..clear()
+      ..addAll(cached);
+
+    final syncedAt = await _studyMaterialCache.syncedAt();
+    final updated = await _client.getStudyMaterials(updatedAfter: syncedAt);
+    if (updated.isNotEmpty) {
+      for (final m in updated) {
+        _studyMaterials[m.subjectId] = m;
+      }
+      await _studyMaterialCache.putAll(updated);
+    }
+    await _studyMaterialCache.setSyncedAt(DateTime.now());
   }
 
   Future<void> _prefetchSvgs(List<WaniKaniSubject> subjects) async {
@@ -266,14 +312,16 @@ class ResourceService {
     return AudioResource.remote(url);
   }
 
-  /// Deletes all cached learning content, audio, and SVG images, and resets
-  /// the cache statistics.
+  /// Deletes all cached learning content, audio, SVG images, and study
+  /// materials, and resets the cache statistics.
   Future<void> purge() async {
     await _subjectCache.clear();
+    await _studyMaterialCache.clear();
     await _audioCache.clear();
     await _svgCache.clear();
     await _httpCacheStore.clear();
     await _statsRecorder.reset();
+    _studyMaterials.clear();
     _audioProgress.value = const AudioDownloadProgress();
   }
 }

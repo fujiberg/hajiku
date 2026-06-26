@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hajiku/src/core/cache/audio_cache.dart';
 import 'package:hajiku/src/core/cache/cache_stats.dart';
 import 'package:hajiku/src/core/cache/cache_stats_store.dart';
+import 'package:hajiku/src/core/cache/study_material_cache.dart';
 import 'package:hajiku/src/core/cache/subject_cache.dart';
 import 'package:hajiku/src/core/cache/svg_cache.dart';
 import 'package:hajiku/src/core/connectivity/connectivity_service.dart';
@@ -83,6 +84,7 @@ void main() {
         httpClient: httpClient,
       ),
       subjectCache: SubjectCache(directory: dir),
+      studyMaterialCache: StudyMaterialCache(directory: dir),
       audioCache: AudioCache(directory: dir, httpClient: httpClient),
       svgCache: SvgCache(directory: dir, httpClient: httpClient),
       connectivity: _FakeConnectivity(wifi),
@@ -196,6 +198,12 @@ void main() {
                     },
                   ]
                 : <Object>[],
+          });
+        }
+        if (path == '/v2/study_materials') {
+          return jsonResponse({
+            'pages': {'next_url': null},
+            'data': <Object>[],
           });
         }
         if (path == '/v2/subjects') {

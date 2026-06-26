@@ -17,17 +17,10 @@ extension ReviewQuizTypeLabel on ReviewQuizType {
 /// reference across the [ReviewQuiz] entries for that subject, so that
 /// answering one quiz updates the other.
 class ReviewItem {
-  ReviewItem({
-    required this.assignmentId,
-    required this.subject,
-    this.meaningSynonyms = const [],
-  });
+  ReviewItem({required this.assignmentId, required this.subject});
 
   final int assignmentId;
   final WaniKaniSubject subject;
-
-  /// User-added meaning synonyms from WaniKani study materials.
-  final List<String> meaningSynonyms;
 
   int incorrectMeaningAnswers = 0;
   int incorrectReadingAnswers = 0;

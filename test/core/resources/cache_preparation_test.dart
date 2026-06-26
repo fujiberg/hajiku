@@ -55,6 +55,12 @@ void main() {
               : <Object>[],
         });
       }
+      if (request.url.path == '/v2/study_materials') {
+        return json({
+          'pages': {'next_url': null},
+          'data': <Object>[],
+        });
+      }
       if (request.url.path == '/v2/subjects') {
         subjectRequests++;
         return json({
