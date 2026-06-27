@@ -47,12 +47,13 @@ jobs:
     needs: analyze-and-test
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: apk
             os: ubuntu-latest
           - target: ios
-            os: macos-latest
+            os: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v7
