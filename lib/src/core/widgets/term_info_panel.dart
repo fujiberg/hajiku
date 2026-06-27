@@ -179,8 +179,9 @@ class _SynonymsSectionState extends ConsumerState<_SynonymsSection> {
     super.dispose();
   }
 
-  List<TextEditingController> _buildControllers(List<String> synonyms) =>
-      [for (final s in synonyms) TextEditingController(text: s)];
+  List<TextEditingController> _buildControllers(List<String> synonyms) => [
+    for (final s in synonyms) TextEditingController(text: s),
+  ];
 
   void _disposeControllers() {
     for (final c in _controllers) {
@@ -211,10 +212,9 @@ class _SynonymsSectionState extends ConsumerState<_SynonymsSection> {
     ];
     setState(() => _saving = true);
     try {
-      await ref.read(resourceServiceProvider).saveStudyMaterial(
-        subjectId: widget.subjectId,
-        synonyms: saved,
-      );
+      await ref
+          .read(resourceServiceProvider)
+          .saveStudyMaterial(subjectId: widget.subjectId, synonyms: saved);
       if (mounted) {
         setState(() {
           _displayedSynonyms = saved;
@@ -304,9 +304,8 @@ class _SynonymsSectionState extends ConsumerState<_SynonymsSection> {
             ),
           ),
         TextButton.icon(
-          onPressed: () => setState(
-            () => _controllers.add(TextEditingController()),
-          ),
+          onPressed: () =>
+              setState(() => _controllers.add(TextEditingController())),
           icon: const Icon(Icons.add, size: 16),
           label: const Text('Add'),
           style: TextButton.styleFrom(

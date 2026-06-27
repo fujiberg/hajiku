@@ -55,16 +55,17 @@ class SubjectCharacterDisplay extends ConsumerWidget {
 ///   4. Replaces any remaining class attributes with `fill="none"`.
 ///   5. Converts `style="clip-path:…"` to the `clip-path` attribute form.
 String _prepareWaniKaniSvg(String svg, String strokeColor) {
-  final styleMatch =
-      RegExp(r'<style>(.*?)</style>', dotAll: true).firstMatch(svg);
+  final styleMatch = RegExp(
+    r'<style>(.*?)</style>',
+    dotAll: true,
+  ).firstMatch(svg);
   if (styleMatch != null) {
     final styleBlock = styleMatch.group(1)!;
 
     // Find the class that contains stroke:var(--color-text…).
-    final strokeClassMatch =
-        RegExp(r'\.(\w+)\{[^}]*stroke:var\(--color-text').firstMatch(
-      styleBlock,
-    );
+    final strokeClassMatch = RegExp(
+      r'\.(\w+)\{[^}]*stroke:var\(--color-text',
+    ).firstMatch(styleBlock);
     final strokeClassName = strokeClassMatch?.group(1);
 
     // Extract stroke-width (digits only, dropping the css "px" unit).
@@ -99,8 +100,7 @@ String _prepareWaniKaniSvg(String svg, String strokeColor) {
       final before = m.group(1)!.trim().replaceAll(RegExp(r';$'), '');
       final clipPath = m.group(2)!;
       final after = m.group(3)!.trim().replaceAll(RegExp(r'^;'), '');
-      final remaining =
-          [before, after].where((s) => s.isNotEmpty).join(';');
+      final remaining = [before, after].where((s) => s.isNotEmpty).join(';');
       return remaining.isEmpty
           ? 'clip-path="$clipPath"'
           : 'clip-path="$clipPath" style="$remaining"';

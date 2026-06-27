@@ -201,12 +201,14 @@ class WaniKaniApiClient {
   Future<List<WaniKaniStudyMaterial>> getStudyMaterials({
     DateTime? updatedAfter,
   }) {
-    final uri = _baseUrl.resolve('study_materials').replace(
-      queryParameters: {
-        if (updatedAfter != null)
-          'updated_after': updatedAfter.toUtc().toIso8601String(),
-      },
-    );
+    final uri = _baseUrl
+        .resolve('study_materials')
+        .replace(
+          queryParameters: {
+            if (updatedAfter != null)
+              'updated_after': updatedAfter.toUtc().toIso8601String(),
+          },
+        );
     return _getAllPages(uri, WaniKaniStudyMaterial.fromJson);
   }
 

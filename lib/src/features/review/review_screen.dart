@@ -93,8 +93,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       final nextFeedback = next.value?.feedback;
       if (prevFeedback == null && nextFeedback != null) {
         final quiz = next.value?.current;
-        if (quiz != null &&
-            (!nextFeedback.correct || quiz.item.isComplete)) {
+        if (quiz != null && (!nextFeedback.correct || quiz.item.isComplete)) {
           _lastInfoItem = quiz.item;
         } else {
           _lastInfoItem = null;

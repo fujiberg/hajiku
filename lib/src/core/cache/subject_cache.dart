@@ -80,9 +80,7 @@ class SubjectCache {
       if (entity is! File) continue;
       try {
         final json = jsonDecode(await entity.readAsString());
-        subjects.add(
-          WaniKaniSubject.fromJson(json as Map<String, dynamic>),
-        );
+        subjects.add(WaniKaniSubject.fromJson(json as Map<String, dynamic>));
       } on FormatException {
         await entity.delete();
       }

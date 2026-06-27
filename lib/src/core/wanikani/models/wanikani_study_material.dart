@@ -13,7 +13,8 @@ class WaniKaniStudyMaterial {
     return WaniKaniStudyMaterial(
       id: json['id'] as int,
       subjectId: data['subject_id'] as int,
-      meaningSynonyms: (data['meaning_synonyms'] as List<dynamic>).cast<String>(),
+      meaningSynonyms: (data['meaning_synonyms'] as List<dynamic>)
+          .cast<String>(),
     );
   }
 
@@ -21,7 +22,8 @@ class WaniKaniStudyMaterial {
     return WaniKaniStudyMaterial(
       id: json['id'] as int,
       subjectId: json['subject_id'] as int,
-      meaningSynonyms: (json['meaning_synonyms'] as List<dynamic>).cast<String>(),
+      meaningSynonyms: (json['meaning_synonyms'] as List<dynamic>)
+          .cast<String>(),
     );
   }
 

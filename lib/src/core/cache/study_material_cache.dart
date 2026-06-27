@@ -48,9 +48,9 @@ class StudyMaterialCache {
     if (materials.isEmpty) return;
     await _materialsDir.create(recursive: true);
     for (final material in materials) {
-      await _fileFor(material.subjectId).writeAsString(
-        jsonEncode(material.toJson()),
-      );
+      await _fileFor(
+        material.subjectId,
+      ).writeAsString(jsonEncode(material.toJson()));
     }
   }
 
@@ -63,8 +63,7 @@ class StudyMaterialCache {
     if (!_metaFile.existsSync()) return null;
     try {
       final json = jsonDecode(await _metaFile.readAsString());
-      final value =
-          (json as Map<String, dynamic>)['synced_at'] as String?;
+      final value = (json as Map<String, dynamic>)['synced_at'] as String?;
       return value == null ? null : DateTime.parse(value);
     } on FormatException {
       return null;

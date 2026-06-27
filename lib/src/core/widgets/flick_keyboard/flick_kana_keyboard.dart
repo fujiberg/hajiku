@@ -378,8 +378,7 @@ class _FlickKanaKeyboardState extends State<FlickKanaKeyboard> {
     final cell = FlickKanaLayout.grid[row][col];
     if (cell is! FlickKanaCell) return const SizedBox.shrink();
 
-    final renderBox =
-        _gridKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return const SizedBox.shrink();
 
     final gridOffset = renderBox.localToGlobal(Offset.zero);
